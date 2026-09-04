@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Send, Search, ChevronRight, ChevronDown, ClipboardList, ClipboardCheck, RefreshCw, Save, Star } from 'lucide-react';
+import { Send, Search, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star } from 'lucide-react';
 import { apiGet, apiPut } from '@/lib/api';
 import AssignTaskModal from '@/components/forms/AssignTaskModal';
 import Modal from '@/components/ui/Modal';
@@ -28,7 +28,6 @@ export default function UnitWorkPlanPage() {
   const [keyword, setKeyword] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [assignTask, setAssignTask] = useState<KHCTTask | null>(null);
-  const [reportJob, setReportJob] = useState<UnitWorkTask | null>(null);
   const [detailTask, setDetailTask] = useState<KHCTTask | null>(null);
   const [reviewJob, setReviewJob] = useState<UnitWorkTask | null>(null);
 
@@ -147,11 +146,9 @@ export default function UnitWorkPlanPage() {
       <AssignTaskModal task={assignTask} orgUnits={orgUnits} isOpen={!!assignTask} onClose={() => setAssignTask(null)}
         onAssigned={() => { load(); setAssignTask(null); }} />
 
-      <ReportModal job={reportJob} isOpen={!!reportJob} onClose={() => setReportJob(null)} onSaved={() => { load(); setReportJob(null); }} />
-
       <TaskDetailModal task={detailTask} jobs={detailTask ? workByTask[detailTask.id] || [] : []}
         isOpen={!!detailTask} onClose={() => setDetailTask(null)}
-        onSaved={() => { load(); }} onReport={setReportJob} />
+        onSaved={() => { load(); }} />
 
       <ReviewJobModal job={reviewJob} isOpen={!!reviewJob} onClose={() => setReviewJob(null)}
         onSaved={() => { load(); setReviewJob(null); }} />
@@ -281,88 +278,22 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
   );
 }
 
-function ReportModal({ job, isOpen, onClose, onSaved }: {
-  job: UnitWorkTask | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [result, setResult] = useState('');
-  const [status, setStatus] = useState<UnitWorkTask['status']>('in_progress');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && job) {
-      setResult(job.result || '');
-      setStatus(job.status && job.status !== 'done' ? job.status : 'done');
-      setSaving(false);
-    }
-  }, [isOpen, job?.id]);
-
-  const handle = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!job) return;
-    setSaving(true);
-    await apiPut(`/api/unit-work-plans/${job.id}`, { result, status });
-    setSaving(false);
-    onSaved?.();
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Báo cáo công việc" maxWidth="max-w-lg">
-      {job && (
-        <form onSubmit={handle} className="space-y-4">
-          <div className="p-3 bg-bg-cream rounded-lg">
-            <p className="text-sm font-semibold text-text-dark">{job.title}</p>
-            <p className="text-xs text-text-light mt-1">Người phụ trách: <span className="font-medium text-text-dark">{job.primaryUserName}</span></p>
-            {job.chiTieu && <p className="text-xs text-accent-green mt-1">Chỉ tiêu: {job.chiTieu}</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Kết quả thực hiện</label>
-            <input value={result} onChange={e => setResult(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" placeholder="VD: 100% | 80/80 | Đã hoàn thành" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Trạng thái</label>
-            <select value={status} onChange={e => setStatus(e.target.value as UnitWorkTask['status'])} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
-              <option value="in_progress">Đang thực hiện</option>
-              <option value="done">Hoàn thành</option>
-            </select>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <button type="button" onClick={onClose} className="btn-secondary">Hủy</button>
-            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Đang lưu...' : 'Lưu báo cáo'}</button>
-          </div>
-        </form>
-      )}
-    </Modal>
-  );
-}
-
 const assessmentOptions = ['Chưa đạt', 'Đạt', 'Tốt', 'Rất tốt'];
 
-function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved, onReport }: {
+function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
   task: KHCTTask | null;
   jobs: UnitWorkTask[];
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
-  onReport: (job: UnitWorkTask) => void;
 }) {
-  const [assessments, setAssessments] = useState<Record<string, string>>({});
-  const [notes, setNotes] = useState<Record<string, string>>({});
   const [taskResult, setTaskResult] = useState('');
   const [taskStatus, setTaskStatus] = useState<'not_started' | 'in_progress' | 'done'>('not_started');
   const [taskReviewNote, setTaskReviewNote] = useState('');
-  const [savingJob, setSavingJob] = useState('');
   const [savingTask, setSavingTask] = useState(false);
 
   useEffect(() => {
     if (isOpen && task) {
-      const sc: Record<string, string> = {};
-      const nt: Record<string, string> = {};
-      jobs.forEach(j => { sc[j.id] = j.assessment || ''; nt[j.id] = j.reviewNote || ''; });
-      setAssessments(sc);
-      setNotes(nt);
       setTaskResult(task.taskResult || '');
       setTaskStatus(task.taskStatus || 'not_started');
       setTaskReviewNote(task.taskReviewNote || '');
@@ -370,27 +301,13 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved, onReport }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, task?.id]);
 
-  const saveJob = async (job: UnitWorkTask) => {
-    setSavingJob(job.id);
-    await apiPut(`/api/unit-work-plans/${job.id}`, {
-      assessment: assessments[job.id] || undefined,
-      reviewNote: notes[job.id] || '',
-    });
-    setSavingJob('');
-    onSaved();
-  };
-
   const synthTask = async () => {
     if (!task) return;
     const total = jobs.length;
     const done = jobs.filter(j => j.status === 'done').length;
     const status = total > 0 && done === total ? 'done' : (jobs.some(j => j.status !== 'assigned') ? 'in_progress' : 'not_started');
-    const scored = jobs.map(j => assessments[j.id]).filter(Boolean);
-    const tagCount = scored.length;
-    const bestRank = scored.length > 0 ? Math.max(...scored.map(a => assessmentOptions.indexOf(a))) : -1;
-    const best = bestRank >= 0 ? assessmentOptions[bestRank] : null;
     setTaskStatus(status);
-    setTaskResult(`${done}/${total} công việc hoàn thành` + (best ? `; ${tagCount} công việc được đánh giá, cao nhất: ${best}` : ''));
+    setTaskResult(`${done}/${total} công việc hoàn thành`);
   };
 
   const saveTask = async () => {
@@ -413,58 +330,6 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved, onReport }: {
               <div>Thời hạn: <span className="font-medium text-text-dark">{task.deadline}</span></div>
               <div>Công việc: <span className="font-medium text-text-dark">{jobs.length}</span></div>
             </div>
-          </div>
-
-          <div className="border-t pt-4">
-            <p className="text-sm font-semibold text-text-dark mb-2">Công việc cá nhân</p>
-            {jobs.length === 0 ? (
-              <p className="text-xs text-text-light">Chưa phân giao công việc.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="table table-fixed min-w-[900px]">
-                  <thead>
-                    <tr>
-                      <th className="w-[24%]">Công việc</th>
-                      <th className="w-[12%]">Người thực hiện</th>
-                      <th className="w-[10%]">Kết quả</th>
-                      <th className="w-[8%]">Trạng thái</th>
-                      <th className="w-[12%]">Đánh giá</th>
-                      <th className="w-[24%]">Nhận xét</th>
-                      <th className="w-[10%]">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {jobs.map(job => (
-                      <tr key={job.id} className="align-top">
-                        <td className="text-sm text-text-dark">{job.title}</td>
-                        <td className="text-sm font-medium text-primary">{job.primaryUserName}</td>
-                        <td className="text-xs text-text-light">{job.result || '—'}</td>
-                        <td><span className={`badge ${statusMeta[job.status].cls}`}>{statusMeta[job.status].label}</span></td>
-                        <td>
-                          <select value={assessments[job.id] ?? ''} onChange={e => setAssessments(a => ({ ...a, [job.id]: e.target.value }))}
-                            className="w-full px-2 py-1.5 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
-                            <option value="">--</option>
-                            {assessmentOptions.map(a => <option key={a} value={a}>{a}</option>)}
-                          </select>
-                        </td>
-                        <td>
-                          <textarea rows={2} value={notes[job.id] || ''} onChange={e => setNotes(n => ({ ...n, [job.id]: e.target.value }))}
-                            className="w-full px-2 py-1.5 rounded-lg border border-border text-sm focus:outline-none focus:border-primary resize-y" />
-                        </td>
-                        <td>
-                          <button onClick={() => saveJob(job)} disabled={savingJob === job.id} className="btn-secondary text-xs flex items-center gap-1">
-                            <Save size={12}/> {savingJob === job.id ? '...' : 'Lưu'}
-                          </button>
-                          <button onClick={() => onReport(job)} className="btn-secondary text-[10px] mt-1 flex items-center gap-1">
-                            <ClipboardCheck size={12}/> Báo cáo
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
 
           <div className="border-t pt-4">
