@@ -308,8 +308,13 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
     const total = jobs.length;
     const done = jobs.filter(j => j.status === 'done').length;
     const status = total > 0 && done === total ? 'done' : (jobs.some(j => j.status !== 'assigned') ? 'in_progress' : 'not_started');
+    const reported = jobs.filter(j => j.result);
+    const parts = reported.map(j => `${j.title}${j.chiTieu ? ` (${j.chiTieu})` : ''}: ${j.result}`);
+    const result = parts.length > 0
+      ? `Hoàn thành ${done}/${total}; ${parts.map(p => p).join(' | ')}`
+      : `${done}/${total} công việc hoàn thành`;
     setTaskStatus(status);
-    setTaskResult(`${done}/${total} công việc hoàn thành`);
+    setTaskResult(result);
   };
 
   const saveTask = async () => {
