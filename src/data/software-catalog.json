@@ -1,0 +1,14 @@
+[
+  {
+    "id": "sw001",
+    "name": "Phần mềm Quản trị đại học",
+    "description": "Phần mềm quản trị đại học",
+    "status": "active"
+  },
+  {
+    "id": "sw002",
+    "name": "Phần mềm quản lý văn bản",
+    "description": "Phần mềm quản lý văn bản",
+    "status": "active"
+  }
+]

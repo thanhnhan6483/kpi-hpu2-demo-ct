@@ -11,7 +11,11 @@
     "deliverable": "Báo cáo rà soát chuẩn đầu ra; danh mục CTĐT cần cập nhật",
     "deadline": "8/2026",
     "status": "active",
-    "chiTieu": "100%"
+    "chiTieu": "100%",
+    "softwareId": "sw001",
+    "taskResult": "1/2 công việc hoàn thành",
+    "taskStatus": "in_progress",
+    "taskReviewNote": "Đạt tiến độ"
   },
   {
     "id": "khct_1788439859427_8135",
@@ -7914,7 +7918,8 @@
     "deliverable": "Báo cáo tổng kết TTSP theo tiêu chí mới",
     "deadline": "4/2027",
     "status": "active",
-    "chiTieu": "HT02: ≥20; ĐT02: 100%"
+    "chiTieu": "HT02: ≥20; ĐT02: 100%",
+    "softwareId": "sw001"
   },
   {
     "id": "khct_1788439860303_9606",

@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     deliverable: body.deliverable || '',
     chiTieu: body.chiTieu || '',
     deadline: body.deadline || '',
+    softwareId: body.softwareId || '',
     status: 'active',
   };
   items.push(newItem);

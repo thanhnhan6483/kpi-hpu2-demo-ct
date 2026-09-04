@@ -9,12 +9,23 @@
     "primaryUserId": "u003",
     "primaryUserName": "Trần Thu Hà",
     "chiTieu": "100%",
-    "result": "",
+    "result": "79%",
     "dueDate": "12/12/2026",
     "note": "Tập trung bổ sung năng lực số và AI",
-    "status": "assigned",
+    "status": "in_progress",
     "createdAt": "2026-08-20T09:00:00.000Z",
-    "updatedAt": "2026-09-04T03:52:42.351Z"
+    "updatedAt": "2026-09-04T09:42:28.442Z",
+    "resultSource": "manual",
+    "syncInfo": {
+      "sourceId": "sw001",
+      "sourceName": "Phần mềm Quản trị đại học",
+      "syncedAt": "2026-09-04T07:26:45.010Z"
+    },
+    "reportNote": "",
+    "score": 4,
+    "reviewNote": "Đáp ứng yêu cầu",
+    "assessment": "Rất tốt",
+    "progress": 50
   },
   {
     "id": "uwpmt4x9k2v6q8n3r5t1j0",
@@ -26,12 +37,22 @@
     "primaryUserId": "u007",
     "primaryUserName": "Phạm Thị Lan",
     "chiTieu": "80 trang",
-    "result": "48 trang",
+    "result": "56 trang",
     "dueDate": "30/09/2026",
     "note": "Hoàn thành 3/5 chương",
     "status": "in_progress",
     "createdAt": "2026-08-22T10:00:00.000Z",
-    "updatedAt": "2026-09-02T09:30:00.000Z"
+    "updatedAt": "2026-09-04T09:41:39.527Z",
+    "resultSource": "sync",
+    "syncInfo": {
+      "sourceId": "sw002",
+      "sourceName": "Phần mềm quản lý văn bản",
+      "syncedAt": "2026-09-04T09:41:10.778Z"
+    },
+    "progress": 70,
+    "score": 3,
+    "reviewNote": "Hoàn thành tốt phần tài liệu",
+    "reportNote": ""
   },
   {
     "id": "uwpmt8h7d4b9c2a6e3f5g1",
@@ -43,12 +64,19 @@
     "primaryUserId": "u008",
     "primaryUserName": "Đỗ Minh Châu",
     "chiTieu": "100%",
-    "result": "100%",
+    "result": "96%",
     "dueDate": "20/08/2026",
     "note": "Đã hoàn thành và nghiệm thu",
-    "status": "done",
+    "status": "in_progress",
     "createdAt": "2026-07-15T08:00:00.000Z",
-    "updatedAt": "2026-08-20T16:00:00.000Z"
+    "updatedAt": "2026-09-04T06:35:08.998Z",
+    "resultSource": "sync",
+    "syncInfo": {
+      "sourceId": "sw001",
+      "sourceName": "Phần mềm Quản trị đại học",
+      "syncedAt": "2026-09-04T06:35:08.998Z"
+    },
+    "progress": 96
   },
   {
     "id": "uwpmt1z5v8y3w7m2n4p6k0",
@@ -60,12 +88,18 @@
     "primaryUserId": "u003",
     "primaryUserName": "Trần Thu Hà",
     "chiTieu": "1 hội thảo",
-    "result": "",
+    "result": "1 hội thảo",
     "dueDate": "15/08/2026",
     "note": "Cần hoàn tất trước chuyển đổi số",
     "status": "in_progress",
     "createdAt": "2026-07-25T14:00:00.000Z",
-    "updatedAt": "2026-08-28T11:00:00.000Z"
+    "updatedAt": "2026-09-04T06:17:42.095Z",
+    "resultSource": "sync",
+    "syncInfo": {
+      "sourceId": "sw001",
+      "sourceName": "Phần mềm Quản trị đại học",
+      "syncedAt": "2026-09-04T06:17:42.095Z"
+    }
   },
   {
     "id": "uwpmt3p5n2c7q9m4x8w6r0",

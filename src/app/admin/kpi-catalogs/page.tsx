@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Target, Building, ClipboardList, Plus, Edit, Trash2, CalendarPlus } from 'lucide-react';
+import { Target, Building, Plus, Edit, Trash2, CalendarPlus } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import PagedTable from '@/components/ui/PagedTable';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
-import { SchoolCatalogForm, UnitCatalogForm, KhctForm } from '@/components/forms/kpi-catalog-forms';
+import { SchoolCatalogForm, UnitCatalogForm } from '@/components/forms/kpi-catalog-forms';
 import PlanModal from '@/components/forms/plan-form';
-import type { SchoolKPICatalog, KPIGroupCatalog, UnitKPICatalog, KHCTTask, StrategicObjective } from '@/types';
+import type { SchoolKPICatalog, KPIGroupCatalog, UnitKPICatalog, StrategicObjective } from '@/types';
 
-type TabKey = 'school-catalog' | 'unit-catalog' | 'work-plan';
+type TabKey = 'school-catalog' | 'unit-catalog';
 
 interface AcademicYear {
   id: string;
@@ -27,7 +27,6 @@ export default function KPICatalogsPage() {
   const [orgUnits, setOrgUnits] = useState<{ id: string; name: string; parentId: string | null; code: string; type: string; status: string }[]>([]);
   const [measurementUnits, setMeasurementUnits] = useState<{ id: string; name: string }[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
-  const [khctTasks, setKhctTasks] = useState<KHCTTask[]>([]);
   const [objectives, setObjectives] = useState<StrategicObjective[]>([]);
 
   const [showModal, setShowModal] = useState(false);
@@ -36,16 +35,12 @@ export default function KPICatalogsPage() {
   const [selectedYearId, setSelectedYearId] = useState('');
   const [unitFilter, setUnitFilter] = useState('');
   const [planOpen, setPlanOpen] = useState(false);
-  const [khctMonthFilter, setKhctMonthFilter] = useState('');
-  const [khctFieldFilter, setKhctFieldFilter] = useState('');
-  const [khctUnitFilter, setKhctUnitFilter] = useState('');
-  const [khctSearch, setKhctSearch] = useState('');
   const [schoolCodeFilter, setSchoolCodeFilter] = useState('');
   const [soFilter, setSoFilter] = useState('');
   const [unitInfoModal, setUnitInfoModal] = useState<{ unit: { id: string; name: string; code: string; type: string; status: string } | null }>({ unit: null });
 
   const loadData = useCallback(async () => {
-    const [sc, uc, gc, kg, ou, mu, ay, khct, so] = await Promise.all([
+    const [sc, uc, gc, kg, ou, mu, ay, so] = await Promise.all([
       apiGet<SchoolKPICatalog[]>('/api/school-kpi-catalog'),
       apiGet<UnitKPICatalog[]>('/api/unit-kpi-catalog'),
       apiGet<KPIGroupCatalog[]>('/api/kpi-group-catalog'),
@@ -53,10 +48,9 @@ export default function KPICatalogsPage() {
       apiGet<{ id: string; name: string; parentId: string | null; code: string; type: string; status: string }[]>('/api/units'),
       apiGet<{ id: string; name: string }[]>('/api/measurement-units'),
       apiGet<AcademicYear[]>('/api/academic-years'),
-      apiGet<KHCTTask[]>('/api/khct'),
       apiGet<StrategicObjective[]>('/api/strategic-objectives'),
     ]);
-    setSchoolCatalog(sc); setUnitCatalog(uc); setGroupCatalog(gc); setKpiGroups(kg); setOrgUnits(ou); setMeasurementUnits(mu); setAcademicYears(ay); setKhctTasks(khct); setObjectives(so);
+    setSchoolCatalog(sc); setUnitCatalog(uc); setGroupCatalog(gc); setKpiGroups(kg); setOrgUnits(ou); setMeasurementUnits(mu); setAcademicYears(ay); setObjectives(so);
   }, []);
 
   useEffect(() => {
@@ -73,7 +67,6 @@ export default function KPICatalogsPage() {
   const apiEntity = (t: TabKey) => {
     if (t === 'school-catalog') return 'school-kpi-catalog';
     if (t === 'unit-catalog') return 'unit-kpi-catalog';
-    if (t === 'work-plan') return 'khct';
     return 'school-kpi-catalog';
   };
 
@@ -96,7 +89,6 @@ export default function KPICatalogsPage() {
 
   const tabs = [
     { id: 'school-catalog' as TabKey, label: 'Chỉ tiêu Trường', icon: Target, count: schoolCatalog.length },
-    { id: 'work-plan' as TabKey, label: 'Kế hoạch công tác', icon: ClipboardList, count: khctTasks.length },
   ];
 
   const filteredUnitGroups = useMemo(() => {
@@ -129,20 +121,6 @@ export default function KPICatalogsPage() {
   const unitName = (id?: string) => measurementUnits.find(m => m.id === id)?.name || id || '—';
   const orgUnitName = (id?: string) => orgUnits.find(u => u.id === id)?.name || id || '—';
 
-  const normalizeUnit = (s: string) =>
-    s.toLowerCase()
-      .replace(/^(p\.|k\.|tt\.|ban|đoàn|công đoàn)\s*/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  const findOrgUnit = (responsibleUnit: string) => {
-    const norm = normalizeUnit(responsibleUnit);
-    return orgUnits.find(u => {
-      const uNorm = normalizeUnit(u.name);
-      return uNorm === norm || uNorm.includes(norm) || norm.includes(uNorm);
-    }) || null;
-  };
-
   const schoolColumns = [
     { key: 'code', label: 'Mã', width: 'w-[6%]', render: (s: SchoolKPICatalog) => s.code },
     { key: 'strategicObjectiveId', label: 'Mục tiêu chiến lược', width: 'w-[18%]', render: (s: SchoolKPICatalog) => {
@@ -174,63 +152,6 @@ export default function KPICatalogsPage() {
     { key: 'cycle', label: 'Chu kỳ', width: 'w-[10%]', render: (u: UnitKPICatalog) => u.cycle || 'Học kỳ' },
     { key: 'type', label: 'Loại', width: 'w-[10%]', render: (u: UnitKPICatalog) => (
       <span className={`badge whitespace-nowrap ${u.linkedCatalogId ? 'badge-info' : 'badge-warning'}`}>{u.linkedCatalogId ? 'Phân bổ' : 'Riêng'}</span>
-    ) },
-  ];
-
-  const khctFields = useMemo(() => [...new Set(khctTasks.map(t => t.field).filter(Boolean))].sort(), [khctTasks]);
-  const khctUnits = useMemo(() => [...new Set(khctTasks.map(t => t.responsibleUnit).filter(Boolean))].sort(), [khctTasks]);
-
-  const filteredKhct = useMemo(() => {
-    let list = khctTasks;
-    if (khctMonthFilter) list = list.filter(t => t.month === khctMonthFilter);
-    if (khctFieldFilter) list = list.filter(t => t.field === khctFieldFilter);
-    if (khctUnitFilter) list = list.filter(t => t.responsibleUnit === khctUnitFilter);
-    if (khctSearch) {
-      const kw = khctSearch.toLowerCase();
-      list = list.filter(t =>
-        t.taskName.toLowerCase().includes(kw) ||
-        t.responsibleUnit.toLowerCase().includes(kw) ||
-        t.kpiCodes.toLowerCase().includes(kw)
-      );
-    }
-    return list;
-  }, [khctTasks, khctMonthFilter, khctFieldFilter, khctUnitFilter, khctSearch]);
-
-  const khctColumns = [
-    { key: 'order', label: 'Mã NV', width: 'w-[5%]', render: (t: KHCTTask) => <span className="text-xs font-mono text-center">{t.order}</span> },
-    { key: 'field', label: 'Lĩnh vực', width: 'w-[9%]', render: (t: KHCTTask) => <span className="text-xs text-text-light whitespace-nowrap">{t.field}</span> },
-    { key: 'taskName', label: 'Nhiệm vụ', width: 'w-[20%]', render: (t: KHCTTask) => <span className="font-medium break-words text-sm">{t.taskName}</span> },
-    { key: 'responsibleUnit', label: 'Đơn vị chủ trì', width: 'w-[11%]', render: (t: KHCTTask) => {
-      const unit = findOrgUnit(t.responsibleUnit);
-      return unit ? (
-        <button onClick={() => setUnitInfoModal({ unit })} className="text-xs text-primary hover:underline cursor-pointer text-left">
-          {t.responsibleUnit}
-        </button>
-      ) : <span className="text-xs">{t.responsibleUnit}</span>;
-    } },
-    { key: 'coordinatingUnits', label: 'Đơn vị phối hợp', width: 'w-[11%]', render: (t: KHCTTask) => <span className="text-xs text-text-light">{t.coordinatingUnits}</span> },
-    { key: 'kpiCodes', label: 'Mã KPI', width: 'w-[9%]', render: (t: KHCTTask) => {
-      const codes = t.kpiCodes.split(';').map(c => c.trim()).filter(Boolean).filter(c => c !== '—');
-      if (codes.length === 0) return <span className="text-xs font-medium text-accent-yellow">Riêng</span>;
-      return (
-        <div className="flex flex-wrap gap-0.5">
-          {codes.map(code => (
-            <button key={code} onClick={() => { setSchoolCodeFilter(code); setTab('school-catalog'); }}
-              className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors">
-              {code}
-            </button>
-          ))}
-        </div>
-      );
-    } },
-    { key: 'chiTieu', label: 'Chỉ tiêu', width: 'w-[11%]', render: (t: KHCTTask) => t.chiTieu ? <span className="text-xs font-medium text-accent-green break-words">{t.chiTieu}</span> : <span className="text-xs text-text-light">—</span> },
-    { key: 'deliverable', label: 'Sản phẩm / Kết quả', width: 'w-[15%]', render: (t: KHCTTask) => <span className="text-xs break-words">{t.deliverable}</span> },
-    { key: 'deadline', label: 'Thời gian', width: 'w-[7%]', render: (t: KHCTTask) => <span className="text-xs font-medium">{t.deadline}</span> },
-    { key: 'actions', label: 'Thao tác', width: 'w-[4%]', render: (t: KHCTTask) => (
-      <div className="flex justify-center gap-1">
-        <button onClick={() => { setEditId(t.id); setShowModal(true); }} className="p-1 text-accent-yellow hover:bg-accent-yellow/10 rounded" title="Sửa"><Edit size={13} /></button>
-        <button onClick={() => handleDelete(t.id)} className="p-1 text-accent-red hover:bg-accent-red/10 rounded" title="Xóa"><Trash2 size={13} /></button>
-      </div>
     ) },
   ];
 
@@ -271,34 +192,7 @@ export default function KPICatalogsPage() {
 
       <div className="card p-3 flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          {tab === 'work-plan' ? (
-            <>
-              <div className="flex items-center gap-2 flex-wrap">
-                <select value={khctMonthFilter} onChange={e => setKhctMonthFilter(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
-                  <option value="">Tất cả tháng</option>
-                  {['8/2026','9/2026','10/2026','11/2026','12/2026','1/2027','2/2027','3/2027','4/2027','5/2027','6/2027','7/2027'].map(m => (
-                    <option key={m} value={m}>Tháng {m}</option>
-                  ))}
-                </select>
-                <select value={khctFieldFilter} onChange={e => setKhctFieldFilter(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
-                  <option value="">Tất cả lĩnh vực</option>
-                  {khctFields.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-                <select value={khctUnitFilter} onChange={e => setKhctUnitFilter(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
-                  <option value="">Tất cả đơn vị</option>
-                  {khctUnits.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-                <input value={khctSearch} onChange={e => setKhctSearch(e.target.value)} placeholder="Tìm nhiệm vụ..."
-                  className="px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary w-[200px]" />
-                <button onClick={() => { setEditId(null); setShowModal(true); }} className="btn-primary text-sm flex items-center gap-1">
-                  <Plus size={15} /> Thêm
-                </button>
-              </div>
-            </>
-          ) : tab === 'unit-catalog' ? (
+          {tab === 'unit-catalog' ? (
             <>
               <div className="flex items-center gap-2 flex-wrap">
                 <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)}
@@ -378,22 +272,13 @@ export default function KPICatalogsPage() {
               columns={unitColumns}
             />
           )}
-          {tab === 'work-plan' && (
-            <PagedTable
-              data={filteredKhct}
-              rowKey={t => t.id}
-              pageSize={15}
-              columns={khctColumns}
-            />
-          )}
         </div>
       </div>
 
       <Modal isOpen={showModal} onClose={() => { setShowModal(false); setEditId(null); }}
-        title={tab === 'work-plan' ? `${editId ? 'Sửa' : 'Thêm'} nhiệm vụ KHCT` : tab === 'school-catalog' ? `${editId ? 'Sửa' : 'Thêm'} Chỉ tiêu Trường` : 'Thêm KPI riêng của đơn vị'} maxWidth="max-w-3xl">
+        title={tab === 'school-catalog' ? `${editId ? 'Sửa' : 'Thêm'} Chỉ tiêu Trường` : 'Thêm KPI riêng của đơn vị'} maxWidth="max-w-3xl">
         {tab === 'school-catalog' && <SchoolCatalogForm item={editId ? (schoolCatalog.find(s => s.id === editId) || null) : null} groups={groupCatalog} units={measurementUnits} objectives={objectives.map(o => ({ id: o.id, name: o.name }))} onSubmit={handleSave} onCancel={() => { setShowModal(false); setEditId(null); }} />}
         {tab === 'unit-catalog' && <UnitCatalogForm item={null} orgUnits={orgUnits.filter(o => o.id !== 'u001')} units={measurementUnits} onSubmit={handleSave} onCancel={() => { setShowModal(false); setEditId(null); }} />}
-        {tab === 'work-plan' && <KhctForm item={editId ? (khctTasks.find(t => t.id === editId) || null) : null} fields={khctFields} orgUnits={orgUnits} schoolCatalog={schoolCatalog} kpiGroups={kpiGroups} onSubmit={handleSave} onCancel={() => { setShowModal(false); setEditId(null); }} />}
       </Modal>
 
       <PlanModal isOpen={planOpen} onClose={() => setPlanOpen(false)} defaultUnitId={unitFilter} />

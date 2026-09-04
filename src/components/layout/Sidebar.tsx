@@ -45,6 +45,7 @@ const menuItems: MenuItem[] = [
         ],
       },
       { href: '/admin/kpi-catalogs', label: 'Chỉ tiêu KPI' },
+      { href: '/admin/ke-hoach-cong-tac', label: 'Kế hoạch công tác' },
       { href: '/kpi/domain/training-program', label: 'Kế hoạch đào tạo' },
     ],
   },
@@ -55,6 +56,7 @@ const menuItems: MenuItem[] = [
     icon: ClipboardCheck,
     children: [
       { href: '/kpi/unit-work-plan', label: 'Kế hoạch đơn vị' },
+      { href: '/kpi/my-work-plan', label: 'Kế hoạch cá nhân' },
     ],
   },
 
@@ -84,6 +86,7 @@ const menuItems: MenuItem[] = [
           { href: '/admin/danh-muc/linh-vuc-kpi', label: 'Danh mục Lĩnh vực KPI' },
           { href: '/admin/danh-muc/linh-vuc-cong-tac', label: 'Danh mục Lĩnh vực công tác' },
           { href: '/admin/danh-muc/don-vi', label: 'Danh mục đơn vị' },
+          { href: '/admin/danh-muc/nguon-du-lieu', label: 'Danh mục nguồn dữ liệu' },
         ],
       },
     ],

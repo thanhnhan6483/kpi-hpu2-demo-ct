@@ -9,12 +9,13 @@ export const KHCT_MONTHS = [
   '1/2027', '2/2027', '3/2027', '4/2027', '5/2027', '6/2027', '7/2027',
 ];
 
-export function KhctForm({ item, fields, orgUnits, schoolCatalog, kpiGroups, onSubmit, onCancel }: {
+export function KhctForm({ item, fields, orgUnits, schoolCatalog, kpiGroups, softwareOptions, onSubmit, onCancel }: {
   item: KHCTTask | null;
   fields: string[];
   orgUnits: { id: string; name: string; parentId: string | null }[];
   schoolCatalog: SchoolKPICatalog[];
   kpiGroups: { id: string; name: string }[];
+  softwareOptions: { id: string; name: string }[];
   onSubmit: (data: any) => void;
   onCancel: () => void;
 }) {
@@ -30,6 +31,7 @@ export function KhctForm({ item, fields, orgUnits, schoolCatalog, kpiGroups, onS
   const [deliverable, setDeliverable] = useState(item?.deliverable || '');
   const [chiTieu, setChiTieu] = useState(item?.chiTieu || '');
   const [deadline, setDeadline] = useState(item?.deadline || '');
+  const [softwareId, setSoftwareId] = useState(item?.softwareId || '');
 
   const toggleKpiCode = (code: string) => {
     setSelectedKpiCodes(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
@@ -37,7 +39,7 @@ export function KhctForm({ item, fields, orgUnits, schoolCatalog, kpiGroups, onS
 
   const handle = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ month, field: fieldValue, taskName, responsibleUnit, coordinatingUnits, kpiCodes: kpiMode === 'rieng' ? '' : selectedKpiCodes.join('; '), deliverable, chiTieu, deadline });
+    onSubmit({ month, field: fieldValue, taskName, responsibleUnit, coordinatingUnits, kpiCodes: kpiMode === 'rieng' ? '' : selectedKpiCodes.join('; '), deliverable, chiTieu, deadline, softwareId });
   };
 
   const leafUnits = orgUnits.filter(u => u.parentId !== null);
@@ -117,6 +119,14 @@ export function KhctForm({ item, fields, orgUnits, schoolCatalog, kpiGroups, onS
     </div>
     <div><label className="block text-sm font-medium mb-1">Sản phẩm / Kết quả</label>
       <textarea value={deliverable} onChange={e => setDeliverable(e.target.value)} rows={2} className={inputCSS} /></div>
+    <div>
+      <label className="block text-sm font-medium mb-1">Nguồn dữ liệu đồng bộ</label>
+      <select value={softwareId} onChange={e => setSoftwareId(e.target.value)} className={inputCSS}>
+        <option value="">-- Không chọn --</option>
+        {softwareOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+      <p className="text-xs text-text-light mt-1">Chọn phần mềm đồng bộ dữ liệu cho nhiệm vụ, hoặc để trống nếu không đồng bộ.</p>
+    </div>
     <div className="flex justify-end gap-2 pt-4 border-t">
       <button type="button" onClick={onCancel} className="btn-secondary">Hủy</button>
       <button type="submit" className="btn-primary">{item ? 'Cập nhật' : 'Thêm mới'}</button>

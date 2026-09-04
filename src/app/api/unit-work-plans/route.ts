@@ -6,9 +6,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const khctTaskId = searchParams.get('khctTaskId');
   const unitId = searchParams.get('unitId');
+  const primaryUserId = searchParams.get('primaryUserId');
   let items = readDb<UnitWorkTask>('unit-work-plans');
   if (khctTaskId) items = items.filter(i => i.khctTaskId === khctTaskId);
   if (unitId) items = items.filter(i => i.unitId === unitId);
+  if (primaryUserId) items = items.filter(i => i.primaryUserId === primaryUserId);
   return NextResponse.json(items);
 }
 
