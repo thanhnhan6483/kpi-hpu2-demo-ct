@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Send, Search, ChevronRight, ChevronDown, ClipboardList, ClipboardCheck, Eye, RefreshCw, Save, Star } from 'lucide-react';
+import { Send, Search, ChevronRight, ChevronDown, ClipboardList, ClipboardCheck, RefreshCw, Save, Star } from 'lucide-react';
 import { apiGet, apiPut } from '@/lib/api';
 import AssignTaskModal from '@/components/forms/AssignTaskModal';
 import Modal from '@/components/ui/Modal';
@@ -169,7 +169,6 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
   onReview: (job: UnitWorkTask) => void;
 }) {
   const kpiCodes = task.kpiCodes.split(';').map(c => c.trim()).filter(Boolean).filter(c => c !== '—');
-  const doneCount = jobs.filter(j => j.status === 'done').length;
   const taskStatus = task.taskStatus || 'not_started';
   const taskStatusMeta: Record<string, { label: string; cls: string }> = {
     not_started: { label: 'Chưa bắt đầu', cls: 'badge-info' },
@@ -198,11 +197,10 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
         <td>
           <div className="flex items-center gap-1 mb-1">
             <span className={`badge ${taskStatusMeta[taskStatus].cls}`}>{taskStatusMeta[taskStatus].label}</span>
-            {jobs.length > 0 && <span className="text-[10px] text-text-light">{doneCount}/{jobs.length} CV</span>}
           </div>
           <div className="flex flex-wrap gap-1">
             <button onClick={e => { e.stopPropagation(); onDetail(); }} className="btn-secondary text-xs flex items-center gap-1">
-              <Eye size={13}/> Chi tiết
+              <Star size={13}/> Đánh giá
             </button>
             <button onClick={e => { e.stopPropagation(); onAssign(); }} className="btn-primary text-xs flex items-center gap-1">
               <Send size={13}/> Phân giao
@@ -404,7 +402,7 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved, onReport }: {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết & đánh giá nhiệm vụ" maxWidth="max-w-4xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Đánh giá & cập nhật kết quả nhiệm vụ" maxWidth="max-w-4xl">
       {task && (
         <div className="space-y-4">
           <div className="p-3 bg-bg-cream rounded-lg">
