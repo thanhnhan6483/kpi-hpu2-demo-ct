@@ -197,7 +197,7 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
           </div>
           <div className="flex flex-wrap gap-1">
             <button onClick={e => { e.stopPropagation(); onDetail(); }} className="btn-secondary text-xs flex items-center gap-1">
-              <Star size={13}/> Đánh giá
+              <Star size={13}/> Báo cáo
             </button>
             <button onClick={e => { e.stopPropagation(); onAssign(); }} className="btn-primary text-xs flex items-center gap-1">
               <Send size={13}/> Phân giao
@@ -219,7 +219,7 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
                     <div className="w-[9%] shrink-0 text-xs font-semibold text-text-light">Trạng thái</div>
                     <div className="w-[9%] shrink-0 text-xs font-semibold text-text-light">Chỉ tiêu</div>
                     <div className="w-[10%] shrink-0 text-xs font-semibold text-text-light">Tiến độ</div>
-                    <div className="w-[14%] shrink-0 text-xs font-semibold text-text-light">Kết quả công việc</div>
+                    <div className="w-[14%] shrink-0 text-xs font-semibold text-text-light">Kết quả báo cáo</div>
                     <div className="w-[11%] shrink-0 text-xs font-semibold text-text-light">Thời hạn</div>
                     <div className="w-[16%] shrink-0 text-xs font-semibold text-text-light">Đánh giá</div>
                     <div className="w-[9%] shrink-0 text-xs font-semibold text-text-light">Thao tác</div>
@@ -246,7 +246,9 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
                           </div>
                         </div>
                         <div className="w-[14%] shrink-0 py-1 text-xs">
-                          {job.result ? <span className="text-accent-green">Kết quả: {job.result}</span> : <span className="text-text-light">—</span>}
+                          {job.result
+                            ? <span className="text-accent-green">Kết quả: {job.result}{job.chiTieu && <span className="text-text-light"> / Chỉ tiêu: {job.chiTieu}</span>}</span>
+                            : <span className="text-text-light">Chưa báo cáo</span>}
                         </div>
                         <div className="w-[11%] shrink-0 py-1 text-sm">
                           <span className={overdue ? 'text-accent-red font-semibold' : ''}>{job.dueDate}</span>
