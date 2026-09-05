@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ClipboardList, FilePlus2, FileText, Download, Trash2, Eye, Calendar } from 'lucide-react';
+import { ClipboardList, FilePlus2, FileText, Download, Trash2, Eye, Calendar, RefreshCw, Paperclip } from 'lucide-react';
 import { apiGet, apiPost, apiDelete } from '@/lib/api';
 import { synthesizeTask } from '@/lib/taskResult';
 import Modal from '@/components/ui/Modal';
@@ -11,6 +11,14 @@ interface OrgUnit {
   id: string;
   name: string;
   parentId: string | null;
+}
+
+interface WorkEvidence {
+  id: string;
+  unitWorkPlanId?: string;
+  fileName?: string;
+  fileUrl?: string;
+  status?: string;
 }
 
 const statusLabelMap: Record<string, string> = {
@@ -68,18 +76,21 @@ export default function UnitWorkReportPage() {
   const [tab, setTab] = useState<'preview' | 'history'>('preview');
   const [viewReport, setViewReport] = useState<UnitWorkReport | null>(null);
   const [saving, setSaving] = useState(false);
+  const [evidences, setEvidences] = useState<WorkEvidence[]>([]);
 
   const loadRebuild = useCallback(async (preserveMonth?: boolean) => {
-    const [t, w, u, r] = await Promise.all([
+    const [t, w, u, r, ev] = await Promise.all([
       apiGet<KHCTTask[]>('/api/khct'),
       apiGet<UnitWorkTask[]>('/api/unit-work-plans'),
       apiGet<OrgUnit[]>('/api/units'),
       apiGet<UnitWorkReport[]>('/api/unit-work-reports'),
+      apiGet<WorkEvidence[]>('/api/evidences'),
     ]);
     setTasks(t);
     setWorkTasks(w);
     setOrgUnits(u);
     setReports(r);
+    setEvidences(ev);
     const ms = Array.from(new Set(t.map(x => x.month).filter(Boolean))).sort();
     setMonths(ms);
     const now = new Date();
@@ -121,12 +132,23 @@ export default function UnitWorkReportPage() {
     return map;
   }, [workTasks]);
 
+  const evidenceByWork = useMemo(() => {
+    const map: Record<string, WorkEvidence[]> = {};
+    evidences.forEach(ev => {
+      if (ev.unitWorkPlanId) (map[ev.unitWorkPlanId] ||= []).push(ev);
+    });
+    return map;
+  }, [evidences]);
+
   const buildRows = useMemo<UnitWorkReportRow[]>(() => {
     const rows: UnitWorkReportRow[] = [];
     filteredTasks.forEach(task => {
       const jobs = workByTask[task.id] || [];
       const synth = synthesizeTask(task, jobs);
       const { status, result: taskResult, totalSub, doneSub } = synth;
+      const jobIds = new Set(jobs.map(j => j.id));
+      const taskEvidence = Object.values(evidenceByWork)
+        .flatMap(list => list.filter(ev => ev.unitWorkPlanId && jobIds.has(ev.unitWorkPlanId)));
 
       rows.push({
         khctTaskId: task.id,
@@ -139,12 +161,16 @@ export default function UnitWorkReportPage() {
         status,
         statusLabel: statusLabelMap[status],
         taskResult,
+        taskReviewNote: task.taskReviewNote,
+        resultSource: task.resultSource,
+        syncInfo: task.syncInfo,
+        evidenceNames: taskEvidence.map(ev => ev.fileName || ev.id),
         doneSub,
         totalSub,
       });
     });
     return rows;
-  }, [filteredTasks, workByTask]);
+  }, [filteredTasks, workByTask, evidenceByWork]);
 
   const summary = useMemo(() => {
     const totalTasks = buildRows.length;
@@ -262,34 +288,44 @@ export default function UnitWorkReportPage() {
                 <tr>
                   <th className="w-[30%]">Nhiệm vụ</th>
                   <th className="w-[10%]">Chủ trì</th>
-                  <th className="w-[8%]">Mã KPI</th>
-                  <th className="w-[13%]">Chỉ tiêu</th>
-                  <th className="w-[18%]">Kết quả</th>
-                  <th className="w-[10%]">Trạng thái</th>
+                  <th className="w-[20%]">Kết quả nhiệm vụ</th>
+                  <th className="w-[12%]">Trạng thái thực hiện</th>
+                  <th className="w-[20%]">Kết luận đánh giá</th>
                   <th className="w-[8%]">CV hoàn thành</th>
                 </tr>
               </thead>
               <tbody>
-                {buildRows.map(row => {
-                  const kpiCodes = row.kpiCodes.split(';').map(c => c.trim()).filter(Boolean).filter(c => c !== '—');
-                  return (
-                    <tr key={row.khctTaskId} className="align-top">
-                      <td className="font-bold text-text-dark">{row.taskName}</td>
-                      <td className="text-sm">{row.responsibleUnit}</td>
-                      <td className="text-xs">
-                        {kpiCodes.length > 0
-                          ? <span className="font-mono font-bold text-primary">{kpiCodes.join('; ')}</span>
-                          : <span className="font-medium text-accent-yellow">Riêng</span>}
-                      </td>
-                      <td className="text-xs font-medium text-accent-green break-words">{row.chiTieu || '—'}</td>
-                      <td className="text-xs text-text-dark break-words">{row.taskResult || 'Chưa báo cáo'}</td>
-                      <td><span className={`badge ${statusClsMap[row.status]}`}>{row.statusLabel}</span></td>
-                      <td className="text-sm">{row.doneSub}/{row.totalSub}</td>
-                    </tr>
-                  );
-                })}
+                {buildRows.map(row => (
+                  <tr key={row.khctTaskId} className="align-top">
+                    <td className="font-bold text-text-dark">{row.taskName}</td>
+                    <td className="text-sm">{row.responsibleUnit}</td>
+                    <td className="break-words">
+                      <span className="flex items-center gap-1.5">
+                        {row.resultSource === 'sync' && row.syncInfo && (
+                          <span title={`Đồng bộ từ ${row.syncInfo.sourceName} lúc ${row.syncInfo.syncedAt}`}>
+                            <RefreshCw size={13} className="text-primary shrink-0"/>
+                          </span>
+                        )}
+                        {row.taskResult ? (
+                          <span className="text-lg font-mono font-bold text-accent-green leading-none">{row.taskResult}</span>
+                        ) : (
+                          <span className="text-xs text-text-light">Chưa báo cáo</span>
+                        )}
+                      </span>
+                      {row.evidenceNames && row.evidenceNames.length > 0 && (
+                        <span className="flex items-center gap-1 text-[11px] text-text-light mt-1">
+                          <Paperclip size={11} className="shrink-0"/>
+                          <span className="truncate">{row.evidenceNames.join(', ')}</span>
+                        </span>
+                      )}
+                    </td>
+                    <td><span className={`badge ${statusClsMap[row.status]}`}>{row.statusLabel}</span></td>
+                    <td className="text-xs text-text-dark break-words">{row.taskReviewNote || <span className="text-text-light">—</span>}</td>
+                    <td className="text-sm">{row.doneSub}/{row.totalSub}</td>
+                  </tr>
+                ))}
                 {buildRows.length === 0 && (
-                  <tr><td colSpan={7} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
+                  <tr><td colSpan={6} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
                 )}
               </tbody>
             </table>

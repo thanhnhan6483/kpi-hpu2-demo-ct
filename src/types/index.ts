@@ -699,6 +699,10 @@ export interface UnitWorkReportRow {
   status: 'done' | 'in_progress' | 'not_started';
   statusLabel: string;
   taskResult: string;
+  taskReviewNote?: string;
+  resultSource?: 'manual' | 'sync';
+  syncInfo?: { sourceId: string; sourceName: string; syncedAt: string };
+  evidenceNames?: string[];
   doneSub: number;
   totalSub: number;
   subTasks?: UnitWorkReportSubTask[];
