@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronRight, ChevronDown, ClipboardList, Send, FilePlus2, FileText, Download, Trash2, Eye, Calendar } from 'lucide-react';
+import { ClipboardList, FilePlus2, FileText, Download, Trash2, Eye, Calendar } from 'lucide-react';
 import { apiGet, apiPost, apiDelete } from '@/lib/api';
 import { synthesizeTask } from '@/lib/taskResult';
 import Modal from '@/components/ui/Modal';
@@ -65,7 +65,6 @@ export default function UnitWorkReportPage() {
   const [month, setMonth] = useState('');
   const [unitFilter, setUnitFilter] = useState('');
   const [keyword, setKeyword] = useState('');
-  const [open, setOpen] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<'preview' | 'history'>('preview');
   const [viewReport, setViewReport] = useState<UnitWorkReport | null>(null);
   const [saving, setSaving] = useState(false);
@@ -142,14 +141,6 @@ export default function UnitWorkReportPage() {
         taskResult,
         doneSub,
         totalSub,
-        subTasks: jobs.map(j => ({
-          title: j.title,
-          chiTieu: j.chiTieu || '',
-          result: j.result || '',
-          status: j.status,
-          assessment: j.assessment || '',
-          dueDate: j.dueDate,
-        })),
       });
     });
     return rows;
@@ -165,9 +156,6 @@ export default function UnitWorkReportPage() {
     const completionRate = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
     return { totalTasks, doneTasks, inProgressTasks, notStartedTasks, totalSub, doneSub, completionRate };
   }, [buildRows]);
-
-  const isOpen = (id: string) => open[id] === true;
-  const toggle = (id: string) => setOpen(o => ({ ...o, [id]: !isOpen(id) }));
 
   const createReport = async () => {
     if (buildRows.length === 0) return;
@@ -276,23 +264,32 @@ export default function UnitWorkReportPage() {
                   <th className="w-[10%]">Chủ trì</th>
                   <th className="w-[8%]">Mã KPI</th>
                   <th className="w-[13%]">Chỉ tiêu</th>
-                  <th className="w-[13%]">Kết quả</th>
+                  <th className="w-[18%]">Kết quả</th>
                   <th className="w-[10%]">Trạng thái</th>
                   <th className="w-[8%]">CV hoàn thành</th>
-                  <th className="w-[8%]">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {buildRows.map(row => {
                   const kpiCodes = row.kpiCodes.split(';').map(c => c.trim()).filter(Boolean).filter(c => c !== '—');
-                  const rowOpen = isOpen(row.khctTaskId);
                   return (
-                    <ReportGroup key={row.khctTaskId} row={row} kpiCodes={kpiCodes} open={rowOpen}
-                      onToggle={() => toggle(row.khctTaskId)} />
+                    <tr key={row.khctTaskId} className="align-top">
+                      <td className="font-bold text-text-dark">{row.taskName}</td>
+                      <td className="text-sm">{row.responsibleUnit}</td>
+                      <td className="text-xs">
+                        {kpiCodes.length > 0
+                          ? <span className="font-mono font-bold text-primary">{kpiCodes.join('; ')}</span>
+                          : <span className="font-medium text-accent-yellow">Riêng</span>}
+                      </td>
+                      <td className="text-xs font-medium text-accent-green break-words">{row.chiTieu || '—'}</td>
+                      <td className="text-xs text-text-dark break-words">{row.taskResult || 'Chưa báo cáo'}</td>
+                      <td><span className={`badge ${statusClsMap[row.status]}`}>{row.statusLabel}</span></td>
+                      <td className="text-sm">{row.doneSub}/{row.totalSub}</td>
+                    </tr>
                   );
                 })}
                 {buildRows.length === 0 && (
-                  <tr><td colSpan={8} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
+                  <tr><td colSpan={7} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
                 )}
               </tbody>
             </table>
@@ -354,79 +351,6 @@ export default function UnitWorkReportPage() {
       <ReportDetailModal report={viewReport} isOpen={!!viewReport} onClose={() => setViewReport(null)}
         onExport={() => viewReport && exportReportCsv(viewReport)} />
     </div>
-  );
-}
-
-function ReportGroup({ row, kpiCodes, open, onToggle }: {
-  row: UnitWorkReportRow;
-  kpiCodes: string[];
-  open: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <>
-      <tr className="bg-bg-cream/60 cursor-pointer hover:bg-bg-cream align-top" onClick={onToggle}>
-        <td className="font-bold text-text-dark">
-          <span className="inline-flex items-center gap-1.5">
-            {open ? <ChevronDown size={16} className="text-text-light shrink-0" /> : <ChevronRight size={16} className="text-text-light shrink-0" />}
-            {row.taskName}
-          </span>
-        </td>
-        <td className="text-sm">{row.responsibleUnit}</td>
-        <td className="text-xs">
-          {kpiCodes.length > 0
-            ? <span className="font-mono font-bold text-primary">{kpiCodes.join('; ')}</span>
-            : <span className="font-medium text-accent-yellow">Riêng</span>}
-        </td>
-        <td className="text-xs font-medium text-accent-green break-words">{row.chiTieu || '—'}</td>
-        <td className="text-xs text-text-dark break-words">{row.taskResult || 'Chưa báo cáo'}</td>
-        <td><span className={`badge ${statusClsMap[row.status]}`}>{row.statusLabel}</span></td>
-        <td className="text-sm">{row.doneSub}/{row.totalSub}</td>
-        <td>
-          <div className="flex flex-wrap gap-1">
-            <button onClick={e => { e.stopPropagation(); onToggle(); }} className="btn-secondary text-xs flex items-center gap-1">
-              <Send size={12} /> {row.subTasks && row.subTasks.length > 0 ? 'Công việc' : 'Chi tiết'}
-            </button>
-          </div>
-        </td>
-      </tr>
-      {row.subTasks && row.subTasks.length > 0 && (
-        <tr className="m-0 border-0">
-          <td colSpan={8} className="m-0 border-0 p-0" style={{ overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 0.3s ease' }}>
-              <div style={{ overflow: 'hidden' }}>
-                <div className="flex w-full items-center bg-bg-cream/40 border-b border-border px-3 py-1 pl-8">
-                  <div className="w-[26%] shrink-0 text-xs font-semibold text-text-light">Công việc</div>
-                  <div className="w-[14%] shrink-0 text-xs font-semibold text-text-light">Chỉ tiêu</div>
-                  <div className="w-[18%] shrink-0 text-xs font-semibold text-text-light">Kết quả báo cáo</div>
-                  <div className="w-[14%] shrink-0 text-xs font-semibold text-text-light">Đánh giá</div>
-                  <div className="w-[12%] shrink-0 text-xs font-semibold text-text-light">Thời hạn</div>
-                  <div className="w-[16%] shrink-0 text-xs font-semibold text-text-light">Trạng thái</div>
-                </div>
-                {row.subTasks.map((job, i) => (
-                  <div key={i} className={`flex w-full items-start border-b border-border px-3 pl-8 ${i === (row.subTasks || []).length - 1 ? 'border-b-0' : ''}`}>
-                    <div className="w-[26%] shrink-0 py-1">
-                      <p className="text-sm text-text-dark leading-snug">{job.title}</p>
-                    </div>
-                    <div className="w-[14%] shrink-0 py-1 text-xs font-medium text-accent-green">{job.chiTieu || '—'}</div>
-                    <div className="w-[18%] shrink-0 py-1 text-xs">
-                      {job.result
-                        ? <span className="text-accent-green">{job.result}</span>
-                        : <span className="text-text-light">Chưa báo cáo</span>}
-                    </div>
-                    <div className="w-[14%] shrink-0 py-1 text-xs font-semibold">{job.assessment || '—'}</div>
-                    <div className="w-[12%] shrink-0 py-1 text-sm">{job.dueDate}</div>
-                    <div className="w-[16%] shrink-0 py-1">
-                      <span className={`badge ${statusClsMap[job.status] ?? 'badge-info'}`}>{statusLabelMap[job.status] || job.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 
