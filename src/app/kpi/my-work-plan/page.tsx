@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Send, ClipboardCheck, AlertTriangle, CheckCircle, Save, RefreshCw, Paperclip, Trash2, UploadCloud } from 'lucide-react';
 import { apiGet, apiPut, apiPost, apiDelete } from '@/lib/api';
 import { getProgress, progressColor, isOverdue } from '@/lib/workProgress';
+import { fileToBase64 } from '@/lib/fileToBase64';
 import Modal from '@/components/ui/Modal';
 import type { UnitWorkTask } from '@/types';
 
@@ -392,16 +393,4 @@ function ReportModal({ job, isOpen, onClose, onSaved }: {
       )}
     </Modal>
   );
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1] || '');
-    };
-    reader.onerror = () => reject(new Error('Không đọc được file'));
-    reader.readAsDataURL(file);
-  });
 }

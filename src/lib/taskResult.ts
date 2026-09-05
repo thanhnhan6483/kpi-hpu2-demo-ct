@@ -45,20 +45,15 @@ export function synthesizeTask(task: TaskSynthMeta, jobs: TaskSynthJob[]): TaskS
 
   const taskChiTieuPct = parsePct(task.chiTieu);
   const jobPcts = jobs.map(j => ({ chiTieu: parsePct(j.chiTieu), result: parsePct(j.result) }));
-  const reported = jobs.filter(j => j.result);
-  const parts = reported.map(j => `${j.title}${j.chiTieu ? ` (${j.chiTieu})` : ''}: ${j.result}`);
 
   let result: string;
   if (taskChiTieuPct !== null && jobPcts.every(p => p.chiTieu !== null)) {
     const totalWeight = jobPcts.reduce((s, p) => s + (p.chiTieu as number), 0);
     const weightedSum = jobPcts.reduce((s, p) => s + ((p.chiTieu as number) * (p.result ?? 0)) / 100, 0);
     const achieved = totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) : 0;
-    result = `Đạt ${achieved}% so với chỉ tiêu ${task.chiTieu}`;
-    if (parts.length > 0) result += `; Hoàn thành ${doneSub}/${totalSub}; ${parts.join(' | ')}`;
+    result = `${achieved}%`;
   } else {
-    result = parts.length > 0
-      ? `Hoàn thành ${doneSub}/${totalSub}; ${parts.join(' | ')}`
-      : `${doneSub}/${totalSub} công việc hoàn thành`;
+    result = `${doneSub}/${totalSub} công việc hoàn thành`;
   }
 
   return { totalSub, doneSub, status, result };

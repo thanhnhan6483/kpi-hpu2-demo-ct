@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Send, Search, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star, Paperclip } from 'lucide-react';
-import { apiGet, apiPut, apiPost } from '@/lib/api';
+import { Send, Search, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star, Paperclip, UploadCloud, Trash2 } from 'lucide-react';
+import { apiGet, apiPut, apiPost, apiDelete } from '@/lib/api';
 import { synthesizeTask } from '@/lib/taskResult';
+import { fileToBase64 } from '@/lib/fileToBase64';
 import AssignTaskModal from '@/components/forms/AssignTaskModal';
 import Modal from '@/components/ui/Modal';
 import { getProgress, progressColor, isOverdue } from '@/lib/workProgress';
@@ -337,11 +338,18 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
   const [taskStatus, setTaskStatus] = useState<'not_started' | 'in_progress' | 'done'>('not_started');
   const [taskReviewNote, setTaskReviewNote] = useState('');
   const [savingTask, setSavingTask] = useState(false);
-  const [mode, setMode] = useState<'manual' | 'sync'>('manual');
+  const [mode, setMode] = useState<'manual' | 'sync' | 'aggregate'>('manual');
   const [sources, setSources] = useState<SoftwareSource[]>([]);
   const [selectedSource, setSelectedSource] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncInfo, setSyncInfo] = useState<KHCTTask['syncInfo']>(undefined);
+  const [evidences, setEvidences] = useState<WorkEvidence[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const loadEvidences = async (taskId: string) => {
+    const list = await apiGet<WorkEvidence[]>(`/api/evidences?unitWorkPlanId=${taskId}`);
+    setEvidences(list);
+  };
 
   useEffect(() => {
     if (isOpen && task) {
@@ -351,6 +359,7 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
       setMode(task.resultSource === 'sync' ? 'sync' : 'manual');
       setSelectedSource('');
       setSyncInfo(task.syncInfo);
+      loadEvidences(task.id);
       apiGet<SoftwareSource[]>('/api/software-catalog')
         .then(d => setSources(d.filter(s => s.status !== 'inactive')))
         .catch(() => setSources([]));
@@ -358,11 +367,12 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, task?.id]);
 
-  const synthTask = async () => {
+  const handleAggregate = async () => {
     if (!task) return;
     const res = synthesizeTask(task, jobs);
     setTaskStatus(res.status);
     setTaskResult(res.result);
+    setMode('aggregate');
   };
 
   const handleSync = async () => {
@@ -376,10 +386,35 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
     setSyncing(false);
   };
 
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !task) return;
+    setUploading(true);
+    try {
+      const base64 = await fileToBase64(file);
+      const up = await apiPost<{ url: string; fileName: string }>('/api/unit-work-plans/upload', {
+        taskId: task.id, fileName: file.name, fileData: base64,
+      });
+      await apiPost('/api/evidences', {
+        unitWorkPlanId: task.id, evidenceType: 'file',
+        fileName: up.fileName, fileUrl: up.url, submittedBy: task.responsibleUnit,
+      });
+      await loadEvidences(task.id);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteEvidence = async (id: string) => {
+    await apiDelete(`/api/evidences/${id}`);
+    if (task) await loadEvidences(task.id);
+  };
+
   const saveTask = async () => {
     if (!task) return;
     setSavingTask(true);
-    await apiPut(`/api/khct/${task.id}`, { taskResult, taskStatus, taskReviewNote, resultSource: mode });
+    await apiPut(`/api/khct/${task.id}`, { taskResult, taskStatus, taskReviewNote, resultSource: mode === 'sync' ? 'sync' : 'manual' });
     setSavingTask(false);
     onSaved();
   };
@@ -399,12 +434,7 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
           </div>
 
           <div className="border-t pt-4">
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-              <p className="text-sm font-semibold text-text-dark">Cập nhật kết quả</p>
-              <button type="button" onClick={synthTask} className="btn-secondary text-xs flex items-center gap-1">
-                <RefreshCw size={13}/> Lấy tổng hợp từ công việc
-              </button>
-            </div>
+            <p className="text-sm font-semibold text-text-dark mb-3">Cập nhật kết quả</p>
 
             <div className="flex flex-wrap gap-2 mb-3">
               <button type="button" onClick={() => setMode('manual')}
@@ -415,60 +445,95 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
                 className={`text-xs px-3 py-1.5 rounded-full border transition ${mode === 'sync' ? 'bg-primary text-white border-primary' : 'text-text-dark border-border hover:border-primary'}`}>
                 <RefreshCw size={12} className="inline mr-1"/>Đồng bộ từ phần mềm
               </button>
+              <button type="button" onClick={handleAggregate}
+                className={`text-xs px-3 py-1.5 rounded-full border transition ${mode === 'aggregate' ? 'bg-primary text-white border-primary' : 'text-text-dark border-border hover:border-primary'}`}>
+                <ClipboardList size={12} className="inline mr-1"/>Tổng hợp kết quả công việc
+              </button>
             </div>
 
             {mode === 'sync' ? (
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-end gap-2">
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="block text-sm font-medium mb-1">Nguồn dữ liệu</label>
-                    <select value={selectedSource} onChange={e => setSelectedSource(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
-                      <option value="">-- Chọn nguồn --</option>
-                      {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </div>
-                  <button type="button" onClick={handleSync} disabled={!selectedSource || syncing}
-                    className="btn-secondary text-sm flex items-center gap-1">
-                    <RefreshCw size={14}/> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ'}
-                  </button>
-                </div>
-                <p className="text-[11px] text-text-light">Là dữ liệu mô phỏng minh họa. Kết quả được hệ thống sinh tương đương chỉ tiêu, không sửa tay.</p>
-                {taskResult && (
-                  <div className="p-3 bg-bg-cream rounded-lg">
-                    <div className="flex items-center gap-1.5 text-sm font-medium text-text-dark">
-                      <RefreshCw size={14} className="text-primary"/>
-                      Kết quả: {taskResult}
-                      {syncInfo && <span className="text-[11px] font-normal text-text-light ml-auto truncate">Đồng bộ từ {syncInfo.sourceName}</span>}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Kết quả thực hiện</label>
-                  <input value={taskResult} onChange={e => setTaskResult(e.target.value)} disabled={syncing}
-                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary disabled:bg-bg-cream"
-                    placeholder="VD: 79% | 80/80 | Đã hoàn thành" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Trạng thái</label>
-                  <select value={taskStatus} onChange={e => setTaskStatus(e.target.value as typeof taskStatus)}
+              <div className="flex flex-wrap items-end gap-2 mb-3">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-sm font-medium mb-1">Nguồn dữ liệu</label>
+                  <select value={selectedSource} onChange={e => setSelectedSource(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
-                    <option value="not_started">Chưa bắt đầu</option>
-                    <option value="in_progress">Đang thực hiện</option>
-                    <option value="done">Hoàn thành</option>
+                    <option value="">-- Chọn nguồn --</option>
+                    {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
+                <button type="button" onClick={handleSync} disabled={!selectedSource || syncing}
+                  className="btn-secondary text-sm flex items-center gap-1">
+                  <RefreshCw size={14}/> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ'}
+                </button>
               </div>
-            )}
+            ) : mode === 'aggregate' ? (
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <button type="button" onClick={handleAggregate} className="btn-secondary text-sm flex items-center gap-1">
+                  <ClipboardList size={14}/> Tổng hợp kết quả công việc
+                </button>
+                <span className="text-[11px] text-text-light">Tính % hoàn thành theo tỉ trọng các công việc con.</span>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Kết quả thực hiện</label>
+                <input value={taskResult} onChange={e => setTaskResult(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary"
+                  placeholder="VD: 73%" />
+                {syncInfo && (
+                  <span className="flex items-center gap-1 text-[11px] text-text-light mt-1">
+                    <RefreshCw size={11} className="text-primary shrink-0"/>
+                    Đồng bộ từ {syncInfo.sourceName} lúc {new Date(syncInfo.syncedAt).toLocaleString('vi-VN')}
+                  </span>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Trạng thái</label>
+                <select value={taskStatus} onChange={e => setTaskStatus(e.target.value as typeof taskStatus)}
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
+                  <option value="not_started">Chưa bắt đầu</option>
+                  <option value="in_progress">Đang thực hiện</option>
+                  <option value="done">Hoàn thành</option>
+                </select>
+              </div>
+            </div>
 
             <div className="mt-3">
               <label className="block text-sm font-medium mb-1">Kết luận đánh giá</label>
               <textarea rows={2} value={taskReviewNote} onChange={e => setTaskReviewNote(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary resize-y" />
             </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-text-dark">File đính kèm</p>
+              <label className="btn-secondary text-xs flex items-center gap-1 cursor-pointer disabled:opacity-60">
+                <UploadCloud size={13}/>
+                {uploading ? 'Đang tải...' : 'Tải lên file'}
+                <input type="file" className="hidden" onChange={handleFile} disabled={uploading} />
+              </label>
+            </div>
+            {evidences.length === 0 ? (
+              <p className="text-xs text-text-light">Chưa có minh chứng.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {evidences.map(ev => (
+                  <li key={ev.id} className="flex items-center gap-2 text-sm text-text-dark bg-bg-cream rounded-lg px-3 py-2">
+                    <Paperclip size={13} className="text-primary shrink-0"/>
+                    {ev.fileUrl ? (
+                      <a href={ev.fileUrl} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate text-primary hover:underline">{ev.fileName || ev.fileUrl}</a>
+                    ) : (
+                      <span className="flex-1 min-w-0 truncate">{ev.fileName || ev.id}</span>
+                    )}
+                    <button type="button" onClick={() => handleDeleteEvidence(ev.id)} className="text-accent-red hover:opacity-70" title="Xóa minh chứng">
+                      <Trash2 size={14}/>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t">
