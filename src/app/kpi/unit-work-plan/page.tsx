@@ -130,7 +130,7 @@ export default function UnitWorkPlanPage() {
             <label className="block text-sm font-medium mb-1">Tháng</label>
             <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
-              <option value="">Chọn tháng</option>
+              <option value="">Tất cả tháng</option>
               {months.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
