@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readDb, writeDb, generateId } from '@/lib/db';
 import { buildSyncedResult } from '@/lib/syncResult';
-import type { UnitWorkTask } from '@/types';
+import type { KHCTTask } from '@/types';
 
 interface SoftwareSource { id: string; name: string; description?: string; status?: string; }
 interface SyncLog {
@@ -18,9 +18,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Thiếu taskId hoặc sourceId' }, { status: 400 });
   }
 
-  const tasks = readDb<UnitWorkTask>('unit-work-plans');
+  const tasks = readDb<KHCTTask>('khct-catalog');
   const idx = tasks.findIndex(t => t.id === taskId);
-  if (idx === -1) return NextResponse.json({ error: 'Không tìm thấy công việc' }, { status: 404 });
+  if (idx === -1) return NextResponse.json({ error: 'Không tìm thấy nhiệm vụ' }, { status: 404 });
 
   const sources = readDb<SoftwareSource>('software-catalog');
   const source = sources.find(s => s.id === sourceId);
@@ -33,14 +33,12 @@ export async function POST(request: NextRequest) {
 
   tasks[idx] = {
     ...tasks[idx],
-    result: synced.text,
+    taskResult: synced.text,
+    taskStatus: 'in_progress',
     resultSource: 'sync',
     syncInfo: { sourceId: source.id, sourceName: source.name, syncedAt: iso },
-    status: 'in_progress',
-    progress: synced.progress,
-    updatedAt: iso,
   };
-  writeDb('unit-work-plans', tasks);
+  writeDb('khct-catalog', tasks);
 
   const logs = readDb<SyncLog>('sync-logs');
   const log: SyncLog = {
@@ -55,7 +53,7 @@ export async function POST(request: NextRequest) {
     recordsSuccess: records,
     recordsFailed: 0,
     errors: [],
-    createdBy: tasks[idx].primaryUserId,
+    createdBy: tasks[idx].responsibleUnit,
   };
   logs.push(log);
   writeDb('sync-logs', logs);

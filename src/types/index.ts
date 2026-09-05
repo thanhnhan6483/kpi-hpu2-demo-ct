@@ -243,6 +243,8 @@ export interface KHCTTask {
   taskResult?: string;
   taskStatus?: 'not_started' | 'in_progress' | 'done';
   taskReviewNote?: string;
+  resultSource?: 'manual' | 'sync';
+  syncInfo?: { sourceId: string; sourceName: string; syncedAt: string };
   status: 'active' | 'inactive';
 }
 

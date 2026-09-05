@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Send, Search, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star, Paperclip } from 'lucide-react';
-import { apiGet, apiPut } from '@/lib/api';
+import { apiGet, apiPut, apiPost } from '@/lib/api';
 import { synthesizeTask } from '@/lib/taskResult';
 import AssignTaskModal from '@/components/forms/AssignTaskModal';
 import Modal from '@/components/ui/Modal';
@@ -22,6 +22,8 @@ interface WorkEvidence {
   fileUrl?: string;
   status?: string;
 }
+
+interface SoftwareSource { id: string; name: string; description?: string; status?: string; }
 
 const statusMeta: Record<UnitWorkTask['status'], { label: string; cls: string }> = {
   assigned: { label: 'Đã giao', cls: 'badge-info' },
@@ -217,7 +219,14 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview, e
         <td className="text-xs font-medium text-accent-green break-words">{task.chiTieu || '—'}</td>
         <td className="text-text-light text-sm">{task.deliverable}</td>
         <td className="text-xs text-text-dark break-words">
-          {synth.result || <span className="text-text-light">Chưa báo cáo</span>}
+          <span className="flex items-start gap-1">
+            {task.resultSource === 'sync' && task.syncInfo && (
+              <span title={`Đồng bộ từ ${task.syncInfo.sourceName} lúc ${task.syncInfo.syncedAt}`}>
+                <RefreshCw size={13} className="text-primary shrink-0 mt-0.5"/>
+              </span>
+            )}
+            <span>{synth.result || <span className="text-text-light">Chưa báo cáo</span>}</span>
+          </span>
           {taskEvidence.length > 0 && (
             <span className="flex items-center gap-1 text-[11px] text-text-light mt-1">
               <Paperclip size={11} className="shrink-0"/>
@@ -328,12 +337,23 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
   const [taskStatus, setTaskStatus] = useState<'not_started' | 'in_progress' | 'done'>('not_started');
   const [taskReviewNote, setTaskReviewNote] = useState('');
   const [savingTask, setSavingTask] = useState(false);
+  const [mode, setMode] = useState<'manual' | 'sync'>('manual');
+  const [sources, setSources] = useState<SoftwareSource[]>([]);
+  const [selectedSource, setSelectedSource] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncInfo, setSyncInfo] = useState<KHCTTask['syncInfo']>(undefined);
 
   useEffect(() => {
     if (isOpen && task) {
       setTaskResult(task.taskResult || '');
       setTaskStatus(task.taskStatus || 'not_started');
       setTaskReviewNote(task.taskReviewNote || '');
+      setMode(task.resultSource === 'sync' ? 'sync' : 'manual');
+      setSelectedSource('');
+      setSyncInfo(task.syncInfo);
+      apiGet<SoftwareSource[]>('/api/software-catalog')
+        .then(d => setSources(d.filter(s => s.status !== 'inactive')))
+        .catch(() => setSources([]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, task?.id]);
@@ -345,10 +365,21 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
     setTaskResult(res.result);
   };
 
+  const handleSync = async () => {
+    if (!task || !selectedSource) return;
+    setSyncing(true);
+    const res = await apiPost<{ task: KHCTTask; syncedRecords: number; sourceName: string }>('/api/khct/sync', { taskId: task.id, sourceId: selectedSource });
+    setTaskResult(res.task.taskResult || '');
+    setTaskStatus(res.task.taskStatus || 'in_progress');
+    setMode('sync');
+    setSyncInfo(res.task.syncInfo);
+    setSyncing(false);
+  };
+
   const saveTask = async () => {
     if (!task) return;
     setSavingTask(true);
-    await apiPut(`/api/khct/${task.id}`, { taskResult, taskStatus, taskReviewNote });
+    await apiPut(`/api/khct/${task.id}`, { taskResult, taskStatus, taskReviewNote, resultSource: mode });
     setSavingTask(false);
     onSaved();
   };
@@ -368,33 +399,75 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
           </div>
 
           <div className="border-t pt-4">
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-              <p className="text-sm font-semibold text-text-dark">Kết quả nhiệm vụ</p>
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <p className="text-sm font-semibold text-text-dark">Cập nhật kết quả</p>
               <button type="button" onClick={synthTask} className="btn-secondary text-xs flex items-center gap-1">
                 <RefreshCw size={13}/> Lấy tổng hợp từ công việc
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">Kết quả nhiệm vụ</label>
-                <input value={taskResult} onChange={e => setTaskResult(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary"
-                  placeholder="VD: 3/5 công việc hoàn thành" />
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button type="button" onClick={() => setMode('manual')}
+                className={`text-xs px-3 py-1.5 rounded-full border transition ${mode === 'manual' ? 'bg-primary text-white border-primary' : 'text-text-dark border-border hover:border-primary'}`}>
+                Nhập kết quả thủ công
+              </button>
+              <button type="button" onClick={() => setMode('sync')}
+                className={`text-xs px-3 py-1.5 rounded-full border transition ${mode === 'sync' ? 'bg-primary text-white border-primary' : 'text-text-dark border-border hover:border-primary'}`}>
+                <RefreshCw size={12} className="inline mr-1"/>Đồng bộ từ phần mềm
+              </button>
+            </div>
+
+            {mode === 'sync' ? (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium mb-1">Nguồn dữ liệu</label>
+                    <select value={selectedSource} onChange={e => setSelectedSource(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
+                      <option value="">-- Chọn nguồn --</option>
+                      {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <button type="button" onClick={handleSync} disabled={!selectedSource || syncing}
+                    className="btn-secondary text-sm flex items-center gap-1">
+                    <RefreshCw size={14}/> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-text-light">Là dữ liệu mô phỏng minh họa. Kết quả được hệ thống sinh tương đương chỉ tiêu, không sửa tay.</p>
+                {taskResult && (
+                  <div className="p-3 bg-bg-cream rounded-lg">
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-text-dark">
+                      <RefreshCw size={14} className="text-primary"/>
+                      Kết quả: {taskResult}
+                      {syncInfo && <span className="text-[11px] font-normal text-text-light ml-auto truncate">Đồng bộ từ {syncInfo.sourceName}</span>}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Trạng thái</label>
-                <select value={taskStatus} onChange={e => setTaskStatus(e.target.value as typeof taskStatus)}
-                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
-                  <option value="not_started">Chưa bắt đầu</option>
-                  <option value="in_progress">Đang thực hiện</option>
-                  <option value="done">Hoàn thành</option>
-                </select>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Kết quả thực hiện</label>
+                  <input value={taskResult} onChange={e => setTaskResult(e.target.value)} disabled={syncing}
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary disabled:bg-bg-cream"
+                    placeholder="VD: 79% | 80/80 | Đã hoàn thành" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Trạng thái</label>
+                  <select value={taskStatus} onChange={e => setTaskStatus(e.target.value as typeof taskStatus)}
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
+                    <option value="not_started">Chưa bắt đầu</option>
+                    <option value="in_progress">Đang thực hiện</option>
+                    <option value="done">Hoàn thành</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Kết luận đánh giá</label>
-                <textarea rows={2} value={taskReviewNote} onChange={e => setTaskReviewNote(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary resize-y" />
-              </div>
+            )}
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium mb-1">Kết luận đánh giá</label>
+              <textarea rows={2} value={taskReviewNote} onChange={e => setTaskReviewNote(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary resize-y" />
             </div>
           </div>
 

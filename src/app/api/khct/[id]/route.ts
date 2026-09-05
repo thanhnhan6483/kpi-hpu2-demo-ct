@@ -8,7 +8,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const items = readDb<KHCTTask>('khct-catalog');
   const index = items.findIndex(i => i.id === id);
   if (index === -1) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const allowed = ['taskResult', 'taskStatus', 'taskReviewNote'];
+  const allowed = ['taskResult', 'taskStatus', 'taskReviewNote', 'resultSource', 'syncInfo'];
   const patch: Partial<KHCTTask> = {};
   allowed.forEach(k => {
     if (k in body) (patch as Record<string, unknown>)[k] = body[k];
