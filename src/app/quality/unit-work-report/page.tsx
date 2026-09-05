@@ -83,10 +83,13 @@ export default function UnitWorkReportPage() {
     setReports(r);
     const ms = Array.from(new Set(t.map(x => x.month).filter(Boolean))).sort();
     setMonths(ms);
+    const now = new Date();
+    const currentMonth = `${now.getMonth() + 1}/${now.getFullYear()}`;
+    const defaultMonth = ms.includes(currentMonth) ? currentMonth : (ms[0] || '');
     if (!preserveMonth) {
-      setMonth(ms[0] || '');
-    } else if (!ms.includes(month)) {
-      setMonth(ms[0] || '');
+      setMonth(defaultMonth);
+    } else if (month && month !== 'all' && !ms.includes(month)) {
+      setMonth(defaultMonth);
     }
   }, [month]);
 
@@ -99,7 +102,7 @@ export default function UnitWorkReportPage() {
 
   const filteredTasks = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
-    let base = tasks.filter(t => t.month === month);
+    let base = month && month !== 'all' ? tasks.filter(t => t.month === month) : tasks;
     if (unitFilter) {
       base = base.filter(t => t.responsibleUnit === selectedUnitName);
     }
@@ -202,19 +205,19 @@ export default function UnitWorkReportPage() {
       <div className="card p-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
           <div>
-            <label className="block text-sm font-medium mb-1">Tháng</label>
-            <select value={month} onChange={e => setMonth(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
-              <option value="">Chọn tháng</option>
-              {months.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          <div>
             <label className="block text-sm font-medium mb-1">Đơn vị</label>
             <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
               <option value="">Tất cả đơn vị</option>
               {orgUnits.filter(u => u.parentId !== null).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Tháng</label>
+            <select value={month} onChange={e => setMonth(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
+              <option value="all">Tất cả tháng</option>
+              {months.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
           <div>
@@ -255,7 +258,7 @@ export default function UnitWorkReportPage() {
           ))}
         </div>
         {tab === 'preview' && (
-          <button onClick={createReport} disabled={saving || buildRows.length === 0}
+          <button onClick={createReport} disabled={saving || buildRows.length === 0 || !month || month === 'all'}
             className="btn-primary flex items-center gap-1">
             <FilePlus2 size={15} /> {saving ? 'Đang lập...' : 'Lập báo cáo'}
           </button>
@@ -264,7 +267,7 @@ export default function UnitWorkReportPage() {
 
       {tab === 'preview' && (
         <div className="card">
-          <div className="card-header">Danh sách nhiệm vụ{selectedUnitName ? ` — ${selectedUnitName}` : ''}{month ? ` — ${month}` : ''}</div>
+          <div className="card-header">Danh sách nhiệm vụ{selectedUnitName ? ` — ${selectedUnitName}` : ''}{month && month !== 'all' ? ` — ${month}` : ''}</div>
           <div className="overflow-x-auto">
             <table className="table table-fixed min-w-[1100px]">
               <thead>
