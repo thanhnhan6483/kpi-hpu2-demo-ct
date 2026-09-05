@@ -134,17 +134,18 @@ export default function UnitWorkPlanPage() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="table table-fixed min-w-[1350px]">
+          <table className="table table-fixed min-w-[1500px]">
             <thead>
               <tr>
-                <th className="w-[22%]">Nhiệm vụ</th>
-                <th className="w-[8%]">Chủ trì</th>
-                <th className="w-[8%]">Phối hợp</th>
+                <th className="w-[18%]">Nhiệm vụ</th>
+                <th className="w-[7%]">Chủ trì</th>
+                <th className="w-[7%]">Phối hợp</th>
                 <th className="w-[6%]">Mã KPI</th>
-                <th className="w-[9%]">Chỉ tiêu</th>
-                <th className="w-[12%]">Sản phẩm/KQ</th>
-                <th className="w-[14%]">Kết quả nhiệm vụ</th>
-                <th className="w-[7%]">Trạng thái thực hiện</th>
+                <th className="w-[8%]">Chỉ tiêu</th>
+                <th className="w-[10%]">Sản phẩm/KQ</th>
+                <th className="w-[12%]">Kết quả nhiệm vụ</th>
+                <th className="w-[6%]">Trạng thái thực hiện</th>
+                <th className="w-[12%]">Kết luận đánh giá</th>
                 <th className="w-[6%]">Thời hạn</th>
                 <th className="w-[8%]">Thao tác</th>
               </tr>
@@ -160,7 +161,7 @@ export default function UnitWorkPlanPage() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={10} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
+                <tr><td colSpan={11} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
               )}
             </tbody>
           </table>
@@ -219,14 +220,18 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview, e
         </td>
         <td className="text-xs font-medium text-accent-green break-words">{task.chiTieu || '—'}</td>
         <td className="text-text-light text-sm">{task.deliverable}</td>
-        <td className="text-xs text-text-dark break-words">
-          <span className="flex items-start gap-1">
+        <td className="break-words">
+          <span className="flex items-center gap-1.5">
             {task.resultSource === 'sync' && task.syncInfo && (
               <span title={`Đồng bộ từ ${task.syncInfo.sourceName} lúc ${task.syncInfo.syncedAt}`}>
-                <RefreshCw size={13} className="text-primary shrink-0 mt-0.5"/>
+                <RefreshCw size={13} className="text-primary shrink-0"/>
               </span>
             )}
-            <span>{synth.result || <span className="text-text-light">Chưa báo cáo</span>}</span>
+            {synth.result ? (
+              <span className="text-lg font-mono font-bold text-accent-green leading-none">{synth.result}</span>
+            ) : (
+              <span className="text-xs text-text-light">Chưa báo cáo</span>
+            )}
           </span>
           {taskEvidence.length > 0 && (
             <span className="flex items-center gap-1 text-[11px] text-text-light mt-1">
@@ -238,6 +243,7 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview, e
         <td>
           <span className={`badge ${taskStatusMeta[taskStatus].cls}`}>{taskStatusMeta[taskStatus].label}</span>
         </td>
+        <td className="text-xs text-text-dark break-words">{task.taskReviewNote || <span className="text-text-light">—</span>}</td>
         <td className="text-sm">{task.deadline}</td>
         <td>
           <div className="flex flex-col gap-1">
@@ -251,7 +257,7 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview, e
         </td>
       </tr>
       <tr className="m-0 border-0">
-        <td colSpan={10} className="m-0 border-0 p-0" style={{ overflow: 'hidden' }}>
+        <td colSpan={11} className="m-0 border-0 p-0" style={{ overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 0.3s ease' }}>
             <div style={{ overflow: 'hidden' }}>
               {jobs.length === 0 && (
