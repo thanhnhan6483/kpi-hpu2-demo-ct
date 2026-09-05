@@ -126,19 +126,23 @@ export default function UnitWorkReportPage() {
       const totalSub = jobs.length;
 
       let status: UnitWorkReportRow['status'];
-      if (task.taskStatus && ['done', 'in_progress', 'not_started'].includes(task.taskStatus)) {
-        status = task.taskStatus;
-      } else if (totalSub > 0) {
+      if (totalSub > 0) {
         if (doneSub === totalSub) status = 'done';
-        else if (doneSub > 0 || jobs.some(j => j.status === 'in_progress')) status = 'in_progress';
+        else if (jobs.some(j => j.status !== 'assigned')) status = 'in_progress';
         else status = 'not_started';
       } else {
         status = task.taskStatus === 'in_progress' ? 'in_progress' : 'not_started';
       }
 
-      let taskResult = task.taskResult || '';
-      if (!taskResult && totalSub > 0) {
-        taskResult = `Hoàn thành ${doneSub}/${totalSub}`;
+      let taskResult = '';
+      if (totalSub > 0) {
+        const reported = jobs.filter(j => j.result);
+        const parts = reported.map(j => `${j.title}${j.chiTieu ? ` (${j.chiTieu})` : ''}: ${j.result}`);
+        taskResult = parts.length > 0
+          ? `Hoàn thành ${doneSub}/${totalSub}; ${parts.join(' | ')}`
+          : `${doneSub}/${totalSub} công việc hoàn thành`;
+      } else {
+        taskResult = task.taskResult || '';
       }
 
       rows.push({
