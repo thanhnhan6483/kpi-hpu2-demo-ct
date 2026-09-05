@@ -78,7 +78,7 @@ export default function UnitWorkPlanPage() {
 
   const filtered = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
-    let base = monthFilter ? tasks.filter(t => t.month === monthFilter) : tasks;
+    let base = monthFilter && monthFilter !== 'all' ? tasks.filter(t => t.month === monthFilter) : tasks;
     if (unitFilter) {
       const unitName = orgUnits.find(u => u.id === unitFilter)?.name || '';
       base = base.filter(t => t.responsibleUnit === unitName);
@@ -130,7 +130,7 @@ export default function UnitWorkPlanPage() {
             <label className="block text-sm font-medium mb-1">Tháng</label>
             <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
-              <option value="">Tất cả tháng</option>
+              <option value="all">Tất cả tháng</option>
               {months.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
@@ -159,7 +159,7 @@ export default function UnitWorkPlanPage() {
       </div>
 
       <div className="card">
-        <div className="card-header">Danh sách nhiệm vụ{selectedUnitName ? ` — ${selectedUnitName}` : ''}{monthFilter ? ` — ${monthFilter}` : ''}</div>
+        <div className="card-header">Danh sách nhiệm vụ{selectedUnitName ? ` — ${selectedUnitName}` : ''}{monthFilter && monthFilter !== 'all' ? ` — ${monthFilter}` : ''}</div>
         <div className="overflow-x-auto">
           <table className="table table-fixed min-w-[1500px]">
             <thead>
