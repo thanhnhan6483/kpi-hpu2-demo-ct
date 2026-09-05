@@ -30,6 +30,12 @@ function csvEscape(val: string | number): string {
   return s;
 }
 
+function parsePct(v: string | undefined | null): number | null {
+  if (!v) return null;
+  const m = String(v).trim().match(/^(\d+(?:\.\d+)?)\s*%$/);
+  return m ? Number(m[1]) : null;
+}
+
 function exportReportCsv(report: UnitWorkReport) {
   const headers = ['Nhiệm vụ', 'Chủ trì', 'Mã KPI', 'Chỉ tiêu', 'Sản phẩm/KQ', 'Trạng thái', 'Kết quả', 'CV hoàn thành'];
   const lines = [headers.join(',')];
@@ -136,11 +142,21 @@ export default function UnitWorkReportPage() {
 
       let taskResult = '';
       if (totalSub > 0) {
+        const taskChiTieuPct = parsePct(task.chiTieu);
+        const jobPcts = jobs.map(j => ({ chiTieu: parsePct(j.chiTieu), result: parsePct(j.result) }));
         const reported = jobs.filter(j => j.result);
         const parts = reported.map(j => `${j.title}${j.chiTieu ? ` (${j.chiTieu})` : ''}: ${j.result}`);
-        taskResult = parts.length > 0
-          ? `Hoàn thành ${doneSub}/${totalSub}; ${parts.join(' | ')}`
-          : `${doneSub}/${totalSub} công việc hoàn thành`;
+        if (taskChiTieuPct !== null && jobPcts.every(p => p.chiTieu !== null)) {
+          const totalWeight = jobPcts.reduce((s, p) => s + (p.chiTieu as number), 0);
+          const weightedSum = jobPcts.reduce((s, p) => s + ((p.chiTieu as number) * (p.result ?? 0)) / 100, 0);
+          const achieved = totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) : 0;
+          taskResult = `Đạt ${achieved}% so với chỉ tiêu ${task.chiTieu}`;
+          if (parts.length > 0) taskResult += `; Hoàn thành ${doneSub}/${totalSub}; ${parts.join(' | ')}`;
+        } else {
+          taskResult = parts.length > 0
+            ? `Hoàn thành ${doneSub}/${totalSub}; ${parts.join(' | ')}`
+            : `${doneSub}/${totalSub} công việc hoàn thành`;
+        }
       } else {
         taskResult = task.taskResult || '';
       }
