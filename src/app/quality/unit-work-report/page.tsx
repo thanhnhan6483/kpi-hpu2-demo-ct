@@ -145,7 +145,8 @@ export default function UnitWorkReportPage() {
     filteredTasks.forEach(task => {
       const jobs = workByTask[task.id] || [];
       const synth = synthesizeTask(task, jobs);
-      const { status, result: taskResult, totalSub, doneSub } = synth;
+      const { result: taskResult, totalSub, doneSub } = synth;
+      const status = task.taskStatus || synth.status;
       const jobIds = new Set(jobs.map(j => j.id));
       const taskEvidence = Object.values(evidenceByWork)
         .flatMap(list => list.filter(ev => ev.unitWorkPlanId && jobIds.has(ev.unitWorkPlanId)));
