@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Send, Search, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star } from 'lucide-react';
+import { Send, Search, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star, Paperclip } from 'lucide-react';
 import { apiGet, apiPut } from '@/lib/api';
 import { synthesizeTask } from '@/lib/taskResult';
 import AssignTaskModal from '@/components/forms/AssignTaskModal';
@@ -15,6 +15,14 @@ interface OrgUnit {
   parentId: string | null;
 }
 
+interface WorkEvidence {
+  id: string;
+  unitWorkPlanId?: string;
+  fileName?: string;
+  fileUrl?: string;
+  status?: string;
+}
+
 const statusMeta: Record<UnitWorkTask['status'], { label: string; cls: string }> = {
   assigned: { label: 'Đã giao', cls: 'badge-info' },
   in_progress: { label: 'Đang thực hiện', cls: 'badge-warning' },
@@ -25,6 +33,7 @@ export default function UnitWorkPlanPage() {
   const [tasks, setTasks] = useState<KHCTTask[]>([]);
   const [workTasks, setWorkTasks] = useState<UnitWorkTask[]>([]);
   const [orgUnits, setOrgUnits] = useState<OrgUnit[]>([]);
+  const [evidences, setEvidences] = useState<WorkEvidence[]>([]);
   const [unitFilter, setUnitFilter] = useState('');
   const [keyword, setKeyword] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -40,7 +49,16 @@ export default function UnitWorkPlanPage() {
   useEffect(() => {
     load();
     apiGet<OrgUnit[]>('/api/units').then(setOrgUnits);
+    apiGet<WorkEvidence[]>('/api/evidences').then(setEvidences);
   }, []);
+
+  const evidenceByWork = useMemo(() => {
+    const map: Record<string, WorkEvidence[]> = {};
+    evidences.forEach(ev => {
+      if (ev.unitWorkPlanId) (map[ev.unitWorkPlanId] ||= []).push(ev);
+    });
+    return map;
+  }, [evidences]);
 
   const filtered = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
@@ -113,17 +131,19 @@ export default function UnitWorkPlanPage() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="table table-fixed min-w-[1100px]">
+          <table className="table table-fixed min-w-[1350px]">
             <thead>
               <tr>
-                <th className="w-[29%]">Nhiệm vụ</th>
-                <th className="w-[10%]">Chủ trì</th>
-                <th className="w-[10%]">Phối hợp</th>
-                <th className="w-[8%]">Mã KPI</th>
-                <th className="w-[13%]">Chỉ tiêu</th>
-                <th className="w-[14%]">Sản phẩm/KQ</th>
-                <th className="w-[7%]">Thời hạn</th>
-                <th className="w-[9%]">Thao tác</th>
+                <th className="w-[22%]">Nhiệm vụ</th>
+                <th className="w-[8%]">Chủ trì</th>
+                <th className="w-[8%]">Phối hợp</th>
+                <th className="w-[6%]">Mã KPI</th>
+                <th className="w-[9%]">Chỉ tiêu</th>
+                <th className="w-[12%]">Sản phẩm/KQ</th>
+                <th className="w-[14%]">Kết quả nhiệm vụ</th>
+                <th className="w-[7%]">Trạng thái thực hiện</th>
+                <th className="w-[6%]">Thời hạn</th>
+                <th className="w-[8%]">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -133,11 +153,11 @@ export default function UnitWorkPlanPage() {
                 return (
                   <TaskGroup key={task.id} task={task} jobs={jobs} open={rowOpen} onToggle={() => toggle(task.id)}
                   onAssign={() => setAssignTask(task)} onDetail={() => setDetailTask(task)}
-                  onReview={setReviewJob} />
+                  onReview={setReviewJob} evidenceByWork={evidenceByWork} />
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
+                <tr><td colSpan={10} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
               )}
             </tbody>
           </table>
@@ -157,7 +177,7 @@ export default function UnitWorkPlanPage() {
   );
 }
 
-function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }: {
+function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview, evidenceByWork }: {
   task: KHCTTask;
   jobs: UnitWorkTask[];
   open: boolean;
@@ -165,6 +185,7 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
   onAssign: () => void;
   onDetail: () => void;
   onReview: (job: UnitWorkTask) => void;
+  evidenceByWork: Record<string, WorkEvidence[]>;
 }) {
   const kpiCodes = task.kpiCodes.split(';').map(c => c.trim()).filter(Boolean).filter(c => c !== '—');
   const taskStatus = task.taskStatus || 'not_started';
@@ -173,6 +194,10 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
     in_progress: { label: 'Đang thực hiện', cls: 'badge-warning' },
     done: { label: 'Hoàn thành', cls: 'badge-success' },
   };
+  const synth = synthesizeTask(task, jobs);
+  const jobIds = new Set(jobs.map(j => j.id));
+  const taskEvidence = Object.values(evidenceByWork)
+    .flatMap(list => list.filter(ev => ev.unitWorkPlanId && jobIds.has(ev.unitWorkPlanId)));
   return (
     <>
       <tr className="bg-bg-cream/60 cursor-pointer hover:bg-bg-cream align-top" onClick={onToggle}>
@@ -191,12 +216,21 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
         </td>
         <td className="text-xs font-medium text-accent-green break-words">{task.chiTieu || '—'}</td>
         <td className="text-text-light text-sm">{task.deliverable}</td>
+        <td className="text-xs text-text-dark break-words">
+          {synth.result || <span className="text-text-light">Chưa báo cáo</span>}
+          {taskEvidence.length > 0 && (
+            <span className="flex items-center gap-1 text-[11px] text-text-light mt-1">
+              <Paperclip size={11} className="shrink-0"/>
+              <span className="truncate">{taskEvidence.map(ev => ev.fileName || ev.id).join(', ')}</span>
+            </span>
+          )}
+        </td>
+        <td>
+          <span className={`badge ${taskStatusMeta[taskStatus].cls}`}>{taskStatusMeta[taskStatus].label}</span>
+        </td>
         <td className="text-sm">{task.deadline}</td>
         <td>
-          <div className="flex items-center gap-1 mb-1">
-            <span className={`badge ${taskStatusMeta[taskStatus].cls}`}>{taskStatusMeta[taskStatus].label}</span>
-          </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-col gap-1">
             <button onClick={e => { e.stopPropagation(); onDetail(); }} className="btn-secondary text-xs flex items-center gap-1">
               <Star size={13}/> Báo cáo
             </button>
@@ -207,7 +241,7 @@ function TaskGroup({ task, jobs, open, onToggle, onAssign, onDetail, onReview }:
         </td>
       </tr>
       <tr className="m-0 border-0">
-        <td colSpan={8} className="m-0 border-0 p-0" style={{ overflow: 'hidden' }}>
+        <td colSpan={10} className="m-0 border-0 p-0" style={{ overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 0.3s ease' }}>
             <div style={{ overflow: 'hidden' }}>
               {jobs.length === 0 && (
