@@ -692,6 +692,7 @@ export interface UnitWorkReportRow {
   khctTaskId: string;
   taskName: string;
   responsibleUnit: string;
+  coordinatingUnits: string;
   kpiCodes: string;
   chiTieu: string;
   deliverable: string;

@@ -154,6 +154,7 @@ export default function UnitWorkReportPage() {
         khctTaskId: task.id,
         taskName: task.taskName,
         responsibleUnit: task.responsibleUnit,
+        coordinatingUnits: task.coordinatingUnits,
         kpiCodes: task.kpiCodes,
         chiTieu: task.chiTieu || '',
         deliverable: task.deliverable,
@@ -283,49 +284,62 @@ export default function UnitWorkReportPage() {
         <div className="card">
           <div className="card-header">Danh sách nhiệm vụ{selectedUnitName ? ` — ${selectedUnitName}` : ''}{month && month !== 'all' ? ` — ${month}` : ''}</div>
           <div className="overflow-x-auto">
-            <table className="table table-fixed min-w-[1100px]">
+            <table className="table table-fixed min-w-[1400px]">
               <thead>
                 <tr>
-                  <th className="w-[30%]">Nhiệm vụ</th>
-                  <th className="w-[10%]">Chủ trì</th>
-                  <th className="w-[20%]">Kết quả nhiệm vụ</th>
-                  <th className="w-[12%]">Trạng thái thực hiện</th>
-                  <th className="w-[20%]">Kết luận đánh giá</th>
-                  <th className="w-[8%]">CV hoàn thành</th>
+                  <th className="w-[24%]">Nhiệm vụ</th>
+                  <th className="w-[8%]">Chủ trì</th>
+                  <th className="w-[8%]">Phối hợp</th>
+                  <th className="w-[9%]">Mã KPI</th>
+                  <th className="w-[10%]">Chỉ tiêu</th>
+                  <th className="w-[10%]">Sản phẩm/KQ</th>
+                  <th className="w-[13%]">Kết quả nhiệm vụ</th>
+                  <th className="w-[9%]">Trạng thái thực hiện</th>
+                  <th className="w-[13%]">Kết luận đánh giá</th>
                 </tr>
               </thead>
               <tbody>
-                {buildRows.map(row => (
-                  <tr key={row.khctTaskId} className="align-top">
-                    <td className="font-bold text-text-dark">{row.taskName}</td>
-                    <td className="text-sm">{row.responsibleUnit}</td>
-                    <td className="break-words">
-                      <span className="flex items-center gap-1.5">
-                        {row.resultSource === 'sync' && row.syncInfo && (
-                          <span title={`Đồng bộ từ ${row.syncInfo.sourceName} lúc ${row.syncInfo.syncedAt}`}>
-                            <RefreshCw size={13} className="text-primary shrink-0"/>
+                {buildRows.map(row => {
+                  const kpiCodes = row.kpiCodes.split(';').map(c => c.trim()).filter(Boolean).filter(c => c !== '—');
+                  return (
+                    <tr key={row.khctTaskId} className="align-top">
+                      <td className="font-bold text-text-dark">{row.taskName}</td>
+                      <td className="text-sm">{row.responsibleUnit}</td>
+                      <td className="text-sm text-text-light">{row.coordinatingUnits}</td>
+                      <td className="text-xs">
+                        {kpiCodes.length > 0
+                          ? <span className="font-mono font-bold text-primary">{kpiCodes.join('; ')}</span>
+                          : <span className="font-medium text-accent-yellow">Riêng</span>}
+                      </td>
+                      <td className="text-xs font-medium text-accent-green break-words">{row.chiTieu || '—'}</td>
+                      <td className="text-sm text-text-light">{row.deliverable}</td>
+                      <td className="break-words">
+                        <span className="flex items-center gap-1.5">
+                          {row.resultSource === 'sync' && row.syncInfo && (
+                            <span title={`Đồng bộ từ ${row.syncInfo.sourceName} lúc ${row.syncInfo.syncedAt}`}>
+                              <RefreshCw size={13} className="text-primary shrink-0"/>
+                            </span>
+                          )}
+                          {row.taskResult ? (
+                            <span className="text-lg font-mono font-bold text-accent-green leading-none">{row.taskResult}</span>
+                          ) : (
+                            <span className="text-xs text-text-light">Chưa báo cáo</span>
+                          )}
+                        </span>
+                        {row.evidenceNames && row.evidenceNames.length > 0 && (
+                          <span className="flex items-center gap-1 text-[11px] text-text-light mt-1">
+                            <Paperclip size={11} className="shrink-0"/>
+                            <span className="truncate">{row.evidenceNames.join(', ')}</span>
                           </span>
                         )}
-                        {row.taskResult ? (
-                          <span className="text-lg font-mono font-bold text-accent-green leading-none">{row.taskResult}</span>
-                        ) : (
-                          <span className="text-xs text-text-light">Chưa báo cáo</span>
-                        )}
-                      </span>
-                      {row.evidenceNames && row.evidenceNames.length > 0 && (
-                        <span className="flex items-center gap-1 text-[11px] text-text-light mt-1">
-                          <Paperclip size={11} className="shrink-0"/>
-                          <span className="truncate">{row.evidenceNames.join(', ')}</span>
-                        </span>
-                      )}
-                    </td>
-                    <td><span className={`badge ${statusClsMap[row.status]}`}>{row.statusLabel}</span></td>
-                    <td className="text-xs text-text-dark break-words">{row.taskReviewNote || <span className="text-text-light">—</span>}</td>
-                    <td className="text-sm">{row.doneSub}/{row.totalSub}</td>
-                  </tr>
-                ))}
+                      </td>
+                      <td><span className={`badge ${statusClsMap[row.status]}`}>{row.statusLabel}</span></td>
+                      <td className="text-xs text-text-dark break-words">{row.taskReviewNote || <span className="text-text-light">—</span>}</td>
+                    </tr>
+                  );
+                })}
                 {buildRows.length === 0 && (
-                  <tr><td colSpan={6} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
+                  <tr><td colSpan={9} className="text-center text-text-light text-sm py-8">Không có nhiệm vụ</td></tr>
                 )}
               </tbody>
             </table>
