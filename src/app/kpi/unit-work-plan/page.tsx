@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Send, Search, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star, Paperclip, UploadCloud, Trash2 } from 'lucide-react';
+import { Send, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star, Paperclip, UploadCloud, Trash2 } from 'lucide-react';
 import { apiGet, apiPut, apiPost, apiDelete } from '@/lib/api';
 import { synthesizeTask } from '@/lib/taskResult';
 import { fileToBase64 } from '@/lib/fileToBase64';
@@ -38,6 +38,7 @@ export default function UnitWorkPlanPage() {
   const [orgUnits, setOrgUnits] = useState<OrgUnit[]>([]);
   const [evidences, setEvidences] = useState<WorkEvidence[]>([]);
   const [unitFilter, setUnitFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState('');
   const [keyword, setKeyword] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [assignTask, setAssignTask] = useState<KHCTTask | null>(null);
@@ -63,9 +64,18 @@ export default function UnitWorkPlanPage() {
     return map;
   }, [evidences]);
 
+  const months = useMemo(
+    () => Array.from(new Set(tasks.map(t => t.month).filter(Boolean))).sort(),
+    [tasks],
+  );
+
+  useEffect(() => {
+    if (!monthFilter && months.length > 0) setMonthFilter(months[0]);
+  }, [months, monthFilter]);
+
   const filtered = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
-    let base = tasks;
+    let base = monthFilter ? tasks.filter(t => t.month === monthFilter) : tasks;
     if (unitFilter) {
       const unitName = orgUnits.find(u => u.id === unitFilter)?.name || '';
       base = base.filter(t => t.responsibleUnit === unitName);
@@ -76,7 +86,7 @@ export default function UnitWorkPlanPage() {
       );
     }
     return base;
-  }, [tasks, unitFilter, keyword, orgUnits]);
+  }, [tasks, unitFilter, keyword, orgUnits, monthFilter]);
 
   const workByTask = useMemo(() => {
     const map: Record<string, UnitWorkTask[]> = {};
@@ -86,8 +96,9 @@ export default function UnitWorkPlanPage() {
     return map;
   }, [workTasks]);
 
-  const totalJobs = workTasks.length;
-  const doneJobs = workTasks.filter(w => w.status === 'done').length;
+  const filteredTaskIds = useMemo(() => new Set(filtered.map(t => t.id)), [filtered]);
+  const totalJobs = workTasks.filter(w => filteredTaskIds.has(w.khctTaskId)).length;
+  const doneJobs = workTasks.filter(w => filteredTaskIds.has(w.khctTaskId) && w.status === 'done').length;
 
   const isOpen = (id: string) => open[id] === true;
   const toggle = (id: string) => setOpen(o => ({ ...o, [id]: !isOpen(id) }));
@@ -99,12 +110,31 @@ export default function UnitWorkPlanPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-heading font-bold text-text-dark">Kế hoạch đơn vị</h1>
-          <div className="mt-2">
+        </div>
+      </div>
+
+      <div className="card p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium mb-1">Đơn vị</label>
             <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)}
-              className="w-[70vw] sm:w-[45vw] lg:w-[34vw] max-w-[380px] px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
+              className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
               <option value="">Tất cả đơn vị</option>
               {orgUnits.filter(u => u.parentId !== null).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Tháng</label>
+            <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
+              <option value="">Chọn tháng</option>
+              {months.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Tìm kiếm nhiệm vụ</label>
+            <input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="Tìm nhiệm vụ, đơn vị..."
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" />
           </div>
         </div>
       </div>
@@ -126,13 +156,7 @@ export default function UnitWorkPlanPage() {
       </div>
 
       <div className="card">
-        <div className="card-header">Danh sách nhiệm vụ{selectedUnitName ? ` — ${selectedUnitName}` : ''}</div>
-        <div className="p-4">
-          <div className="relative w-[70vw] sm:w-[45vw] lg:w-[34vw] max-w-[380px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-light"/>
-            <input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="Tìm nhiệm vụ, đơn vị..." className="w-full pl-10 pr-4 py-2 border border-border rounded-lg text-sm"/>
-          </div>
-        </div>
+        <div className="card-header">Danh sách nhiệm vụ{selectedUnitName ? ` — ${selectedUnitName}` : ''}{monthFilter ? ` — ${monthFilter}` : ''}</div>
         <div className="overflow-x-auto">
           <table className="table table-fixed min-w-[1500px]">
             <thead>
