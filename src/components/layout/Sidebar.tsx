@@ -68,6 +68,7 @@ const menuItems: MenuItem[] = [
       { href: '/kpi/evaluation', label: 'Đánh giá KPI' },
       { href: '/kpi/scoring', label: 'Xếp loại chất lượng' },
       { href: '/quality/unit-work-report', label: 'Báo cáo kết quả nhiệm vụ' },
+      { href: '/quality/kpi-indicator-report', label: 'Báo cáo chỉ tiêu KPI' },
     ],
   },
 
