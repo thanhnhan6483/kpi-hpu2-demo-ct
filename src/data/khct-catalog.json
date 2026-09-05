@@ -13,7 +13,7 @@
     "status": "active",
     "chiTieu": "100%",
     "softwareId": "sw001",
-    "taskResult": "1/2 công việc hoàn thành",
+    "taskResult": "Hoàn thành 0/5; Rà soát, điều chỉnh chuẩn đầu ra các CTĐT (25%): 79% | Xây dựng bộ tài liệu hướng dẫn cập nhật CTĐT (20%): 70% | Đánh giá mức độ đáp ứng chuẩn đầu ra (25%): 96% | Tổ chức hội thảo lấy ý kiến các bên liên quan (15%): 100%",
     "taskStatus": "in_progress",
     "taskReviewNote": "Đạt tiến độ"
   },

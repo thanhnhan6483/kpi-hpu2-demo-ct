@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Send, Search, ChevronRight, ChevronDown, ClipboardList, RefreshCw, Save, Star } from 'lucide-react';
 import { apiGet, apiPut } from '@/lib/api';
+import { synthesizeTask } from '@/lib/taskResult';
 import AssignTaskModal from '@/components/forms/AssignTaskModal';
 import Modal from '@/components/ui/Modal';
 import { getProgress, progressColor, isOverdue } from '@/lib/workProgress';
@@ -305,16 +306,9 @@ function TaskDetailModal({ task, jobs, isOpen, onClose, onSaved }: {
 
   const synthTask = async () => {
     if (!task) return;
-    const total = jobs.length;
-    const done = jobs.filter(j => j.status === 'done').length;
-    const status = total > 0 && done === total ? 'done' : (jobs.some(j => j.status !== 'assigned') ? 'in_progress' : 'not_started');
-    const reported = jobs.filter(j => j.result);
-    const parts = reported.map(j => `${j.title}${j.chiTieu ? ` (${j.chiTieu})` : ''}: ${j.result}`);
-    const result = parts.length > 0
-      ? `Hoàn thành ${done}/${total}; ${parts.map(p => p).join(' | ')}`
-      : `${done}/${total} công việc hoàn thành`;
-    setTaskStatus(status);
-    setTaskResult(result);
+    const res = synthesizeTask(task, jobs);
+    setTaskStatus(res.status);
+    setTaskResult(res.result);
   };
 
   const saveTask = async () => {

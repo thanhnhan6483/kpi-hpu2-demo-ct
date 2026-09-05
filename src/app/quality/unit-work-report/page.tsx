@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronRight, ChevronDown, ClipboardList, Send, FilePlus2, FileText, Download, Trash2, Eye, Calendar } from 'lucide-react';
 import { apiGet, apiPost, apiDelete } from '@/lib/api';
+import { synthesizeTask } from '@/lib/taskResult';
 import Modal from '@/components/ui/Modal';
 import type { KHCTTask, UnitWorkTask, UnitWorkReport, UnitWorkReportRow } from '@/types';
 
@@ -28,12 +29,6 @@ function csvEscape(val: string | number): string {
   const s = String(val);
   if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
   return s;
-}
-
-function parsePct(v: string | undefined | null): number | null {
-  if (!v) return null;
-  const m = String(v).trim().match(/^(\d+(?:\.\d+)?)\s*%$/);
-  return m ? Number(m[1]) : null;
 }
 
 function exportReportCsv(report: UnitWorkReport) {
@@ -128,38 +123,8 @@ export default function UnitWorkReportPage() {
     const rows: UnitWorkReportRow[] = [];
     filteredTasks.forEach(task => {
       const jobs = workByTask[task.id] || [];
-      const doneSub = jobs.filter(j => j.status === 'done').length;
-      const totalSub = jobs.length;
-
-      let status: UnitWorkReportRow['status'];
-      if (totalSub > 0) {
-        if (doneSub === totalSub) status = 'done';
-        else if (jobs.some(j => j.status !== 'assigned')) status = 'in_progress';
-        else status = 'not_started';
-      } else {
-        status = task.taskStatus === 'in_progress' ? 'in_progress' : 'not_started';
-      }
-
-      let taskResult = '';
-      if (totalSub > 0) {
-        const taskChiTieuPct = parsePct(task.chiTieu);
-        const jobPcts = jobs.map(j => ({ chiTieu: parsePct(j.chiTieu), result: parsePct(j.result) }));
-        const reported = jobs.filter(j => j.result);
-        const parts = reported.map(j => `${j.title}${j.chiTieu ? ` (${j.chiTieu})` : ''}: ${j.result}`);
-        if (taskChiTieuPct !== null && jobPcts.every(p => p.chiTieu !== null)) {
-          const totalWeight = jobPcts.reduce((s, p) => s + (p.chiTieu as number), 0);
-          const weightedSum = jobPcts.reduce((s, p) => s + ((p.chiTieu as number) * (p.result ?? 0)) / 100, 0);
-          const achieved = totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) : 0;
-          taskResult = `Đạt ${achieved}% so với chỉ tiêu ${task.chiTieu}`;
-          if (parts.length > 0) taskResult += `; Hoàn thành ${doneSub}/${totalSub}; ${parts.join(' | ')}`;
-        } else {
-          taskResult = parts.length > 0
-            ? `Hoàn thành ${doneSub}/${totalSub}; ${parts.join(' | ')}`
-            : `${doneSub}/${totalSub} công việc hoàn thành`;
-        }
-      } else {
-        taskResult = task.taskResult || '';
-      }
+      const synth = synthesizeTask(task, jobs);
+      const { status, result: taskResult, totalSub, doneSub } = synth;
 
       rows.push({
         khctTaskId: task.id,
