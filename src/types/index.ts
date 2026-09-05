@@ -676,3 +676,46 @@ export interface UnitWorkTask {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface UnitWorkReportSubTask {
+  title: string;
+  chiTieu: string;
+  result: string;
+  status: string;
+  assessment: string;
+  dueDate: string;
+}
+
+export interface UnitWorkReportRow {
+  khctTaskId: string;
+  taskName: string;
+  responsibleUnit: string;
+  kpiCodes: string;
+  chiTieu: string;
+  deliverable: string;
+  deadline: string;
+  status: 'done' | 'in_progress' | 'not_started';
+  statusLabel: string;
+  taskResult: string;
+  doneSub: number;
+  totalSub: number;
+  subTasks?: UnitWorkReportSubTask[];
+}
+
+export interface UnitWorkReport {
+  id: string;
+  month: string;
+  unitFilterName: string;
+  unitIds: string[];
+  createdAt: string;
+  rows: UnitWorkReportRow[];
+  summary: {
+    totalTasks: number;
+    doneTasks: number;
+    inProgressTasks: number;
+    notStartedTasks: number;
+    totalSub: number;
+    doneSub: number;
+    completionRate: number;
+  };
+}
