@@ -70,7 +70,10 @@ export default function UnitWorkPlanPage() {
   );
 
   useEffect(() => {
-    if (!monthFilter && months.length > 0) setMonthFilter(months[0]);
+    if (monthFilter) return;
+    const now = new Date();
+    const currentMonth = `${now.getMonth() + 1}/${now.getFullYear()}`;
+    setMonthFilter(months.includes(currentMonth) ? currentMonth : months[0] || '');
   }, [months, monthFilter]);
 
   const filtered = useMemo(() => {
