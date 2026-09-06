@@ -1,11 +1,11 @@
 'use client';
 
-import { Plus, Edit, Trash2, Wand2, UserCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, UserCheck } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import Modal from '@/components/ui/Modal';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import academicYearsData from '@/data/academic-years.json';
-import { positionName, suggestedTemplateIdForPosition } from '@/lib/jobPositionTemplate';
+import { positionName } from '@/lib/jobPositionTemplate';
 
 interface UserData {
   id: string;
@@ -107,8 +107,6 @@ export default function IndividualTemplateAssignmentsPage() {
 
   const getAssignment = (userId: string) => assignments.find(a => a.userId === userId && a.academicYearId === yearId);
 
-  const suggestTemplateId = (user: UserData) => suggestedTemplateIdForPosition(user.positionId, unitNames[user.unitId]?.type);
-
   const handleSave = async (data: { kpiTemplateId: string; status: 'active' | 'inactive' }) => {
     if (!editUser) return;
     const existing = getAssignment(editUser.id);
@@ -136,30 +134,6 @@ export default function IndividualTemplateAssignmentsPage() {
     load();
   };
 
-  const handleSuggest = async () => {
-    const candidates = filteredUsers;
-    const pending = candidates.filter(u => !getAssignment(u.id));
-    if (pending.length === 0) {
-      setMessage('Tất cả nhân sự trong phạm vi đã được gán Bộ KPI mẫu.');
-      return;
-    }
-    let created = 0;
-    let skipped = 0;
-    for (const u of pending) {
-      const unit = unitNames[u.unitId];
-      if (!unit) { skipped += 1; continue; }
-      await apiPost('/api/individual-template-assignments', {
-        userId: u.id,
-        academicYearId: yearId,
-        kpiTemplateId: suggestTemplateId(u),
-        status: 'active',
-      });
-      created += 1;
-    }
-    setMessage(`Đã đề xuất gán ${created} nhân sự, bỏ qua ${skipped} nhân sự chưa xác định được đơn vị.`);
-    load();
-  };
-
   const unitOptions = filteredUsers.length !== users.length
     ? units.filter(u => u.id === unitFilter)
     : units.filter(u => filteredUsers.some(x => x.unitId === u.id));
@@ -170,13 +144,8 @@ export default function IndividualTemplateAssignmentsPage() {
         <div>
           <h1 className="text-2xl font-heading font-bold text-text-dark">Gán Bộ KPI mẫu cá nhân</h1>
           <p className="text-sm text-text-light mt-1">
-            Gán Bộ KPI mẫu cho từng nhân sự theo năm học. Quy tắc đề xuất: ưu tiên theo vị trí việc làm (Chuyên viên → Bộ KPI Chuyên viên, Giảng viên → Bộ KPI Giảng viên); vị trí chưa gắn bộ mẫu thì fallback theo khối đơn vị (Giảng dạy → Giảng viên, Hành chính → Chuyên viên).
+            Gán Bộ KPI mẫu cho từng nhân sự theo năm học.
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleSuggest} className="btn-primary text-xs flex items-center gap-1">
-            <Wand2 size={14} /> Đề xuất gán theo quy tắc
-          </button>
         </div>
       </div>
 
@@ -290,7 +259,6 @@ export default function IndividualTemplateAssignmentsPage() {
             unit={unitNames[editUser.unitId]}
             templates={templates}
             existing={getAssignment(editUser.id)}
-            suggested={suggestTemplateId(editUser)}
             onCancel={() => { setShowModal(false); setEditUser(null); }}
             onSubmit={(data) => handleSave(data)}
             yearName={yearName}
@@ -301,17 +269,16 @@ export default function IndividualTemplateAssignmentsPage() {
   );
 }
 
-function AssignmentForm({ user, unit, templates, existing, suggested, onCancel, onSubmit, yearName }: {
+function AssignmentForm({ user, unit, templates, existing, onCancel, onSubmit, yearName }: {
   user: UserData;
   unit?: UnitData;
   templates: KpiTemplate[];
   existing?: Assignment;
-  suggested?: string;
   onCancel: () => void;
   onSubmit: (data: { kpiTemplateId: string; status: 'active' | 'inactive' }) => void;
   yearName: string;
 }) {
-  const [templateId, setTemplateId] = useState(existing?.kpiTemplateId || suggested || '');
+  const [templateId, setTemplateId] = useState(existing?.kpiTemplateId || '');
   const [status, setStatus] = useState<'active' | 'inactive'>(existing?.status || 'active');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -359,9 +326,6 @@ function AssignmentForm({ user, unit, templates, existing, suggested, onCancel, 
             <option key={t.id} value={t.id}>{t.name} ({templateStatusText[t.status] || t.status})</option>
           ))}
         </select>
-        {!existing && suggested && (
-          <p className="mt-1 text-xs text-text-light">Gợi ý theo vị trí việc làm: <span className="text-accent-green font-medium">{templates.find(t => t.id === suggested)?.name || suggested}</span></p>
-        )}
       </div>
       <div className="flex justify-end gap-2 pt-4 border-t">
         <button type="button" onClick={onCancel} className="btn-secondary">Hủy</button>
