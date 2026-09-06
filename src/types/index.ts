@@ -665,6 +665,10 @@ export interface UnitWorkTask {
   title: string;
   primaryUserId: string;
   primaryUserName: string;
+  templateId?: string;
+  templateItemId?: string;
+  criterionCode?: string;
+  month?: string;
   chiTieu?: string;
   result?: string;
   resultSource?: 'manual' | 'sync';
@@ -676,6 +680,54 @@ export interface UnitWorkTask {
   dueDate: string;
   note: string;
   status: 'assigned' | 'in_progress' | 'done';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IndividualTemplateAssignment {
+  id: string;
+  userId: string;
+  academicYearId: string;
+  kpiTemplateId: string;
+  status: 'active' | 'inactive';
+  assignedAt: string;
+  updatedAt: string;
+}
+
+export interface ProductivityCriterionRow {
+  templateItemId: string;
+  criterionCode: string;
+  criterionName: string;
+  target: string;
+  unit: string;
+  weight: number;
+  completedTasks: number;
+  totalTasks: number;
+  resultPct: number;
+  hasEvidence: boolean;
+  score: number;
+}
+
+export interface LaborProductivity {
+  id: string;
+  userId: string;
+  userName: string;
+  unitId: string;
+  unitName: string;
+  academicYearId: string;
+  month: string;
+  templateId: string;
+  templateName: string;
+  status: 'draft' | 'self_reviewed' | 'manager_reviewed' | 'locked';
+  criterionRows: ProductivityCriterionRow[];
+  totalScore: number;
+  grade: 'A' | 'B' | 'C';
+  selfNote?: string;
+  managerNote?: string;
+  managerGrade?: 'A' | 'B' | 'C' | '';
+  submittedAt?: string;
+  reviewedAt?: string;
+  lockedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

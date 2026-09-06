@@ -8,7 +8,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const items = readDb<UnitWorkTask>('unit-work-plans');
   const index = items.findIndex(i => i.id === id);
   if (index === -1) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const allowed = ['title', 'primaryUserId', 'primaryUserName', 'chiTieu', 'result', 'resultSource', 'reportNote', 'progress', 'assessment', 'reviewNote', 'dueDate', 'note', 'status'];
+  const allowed = ['title', 'primaryUserId', 'primaryUserName', 'templateId', 'templateItemId', 'criterionCode', 'month', 'chiTieu', 'result', 'resultSource', 'reportNote', 'progress', 'assessment', 'reviewNote', 'dueDate', 'note', 'status'];
   const patch: Partial<UnitWorkTask> = {};
   allowed.forEach(k => {
     if (k in body) (patch as Record<string, unknown>)[k] = body[k];

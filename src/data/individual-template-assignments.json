@@ -1,0 +1,74 @@
+[
+  {
+    "id": "ita001",
+    "userId": "u003",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "ita002",
+    "userId": "u004",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "ita003",
+    "userId": "u005",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "ita004",
+    "userId": "u007",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "ita005",
+    "userId": "u008",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "ita006",
+    "userId": "u009",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "ita007",
+    "userId": "u010",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl002",
+    "status": "active",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "ita008",
+    "userId": "u011",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  }
+]

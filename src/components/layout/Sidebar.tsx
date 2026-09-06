@@ -96,6 +96,7 @@ const menuItems: MenuItem[] = [
           { href: '/admin/danh-muc/linh-vuc-kpi', label: 'Danh mục Lĩnh vực KPI' },
           { href: '/admin/job-positions', label: 'Vị trí việc làm' },
           { href: '/kpi/kpi-templates', label: 'Danh mục Bộ KPI mẫu' },
+          { href: '/admin/individual-template-assignments', label: 'Gán Bộ KPI mẫu cá nhân' },
           { href: '/admin/danh-muc/linh-vuc-cong-tac', label: 'Danh mục Lĩnh vực công tác' },
           { href: '/admin/danh-muc/don-vi', label: 'Danh mục đơn vị' },
           { href: '/admin/danh-muc/nguon-du-lieu', label: 'Danh mục nguồn dữ liệu' },
