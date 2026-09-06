@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, RefreshCw, Send } from 'lucide-react';
+import { ArrowLeft, ChevronDown, RefreshCw, Send } from 'lucide-react';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
 import academicYearsData from '@/data/academic-years.json';
 import {
@@ -59,6 +59,16 @@ export default function LaborProductivityDetailPage() {
   const [saving, setSaving] = useState(false);
   const [scoreText, setScoreText] = useState('');
   const [selGrade, setSelGrade] = useState<ProductivityGrade>('C');
+  const [openItems, setOpenItems] = useState<Set<string>>(new Set());
+
+  const toggleItem = (key: string) => {
+    setOpenItems(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const m = searchParams.get('month');
@@ -199,7 +209,7 @@ export default function LaborProductivityDetailPage() {
               <td className="font-mono text-sm">{isNaN(effectiveProgress(t)) ? '—' : `${effectiveProgress(t)}%`}</td>
               <td><span className={`badge ${TASK_STATUS[t.status]?.cls || 'badge-info'}`}>{TASK_STATUS[t.status]?.label || t.status}</span></td>
               <td>{t.resultSource === 'sync'
-                ? <span className="badge badge-info whitespace-nowrap">Từ phần mềm khác{ t.syncInfo?.sourceName ? `: ${t.syncInfo.sourceName}` : ''}</span>
+                ? <span className="badge badge-info whitespace-nowrap">{t.syncInfo?.sourceName || 'Từ phần mềm khác'}</span>
                 : <span className="badge whitespace-nowrap">Kế hoạch cá nhân</span>}</td>
               <td className="text-xs text-text-light whitespace-nowrap">{t.dueDate || '—'}</td>
             </tr>
@@ -243,7 +253,7 @@ export default function LaborProductivityDetailPage() {
             <div className="card-header flex flex-wrap items-center justify-between gap-3">
               <span>Thông tin nhân sự</span>
               {canManage && (
-                <button onClick={handleSync} disabled={syncing} className="btn-primary text-xs flex items-center gap-1">
+                <button onClick={handleSync} disabled={syncing} className="bg-white text-primary hover:bg-primary-light font-medium px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-sm">
                   <RefreshCw size={12}/> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
                 </button>
               )}
@@ -327,11 +337,20 @@ export default function LaborProductivityDetailPage() {
                   </thead>
                   <tbody>
                     {computed.rows.map(r => {
+                      const key = r.templateItemId || r.criterionCode;
                       const list = liveTasks.filter(t => t.templateItemId === r.templateItemId);
+                      const open = openItems.has(key);
                       return (
-                        <Fragment key={r.templateItemId || r.criterionCode}>
-                          <tr>
+                        <Fragment key={key}>
+                          <tr onClick={() => toggleItem(key)} className="cursor-pointer">
                             <td>
+                              <button type="button"
+                                onClick={e => { e.stopPropagation(); toggleItem(key); }}
+                                aria-expanded={open}
+                                aria-label={open ? `Thu lại công việc tiêu chí ${r.criterionName}` : `Xem công việc tiêu chí ${r.criterionName}`}
+                                className="mr-1.5 align-middle text-text-light hover:text-primary">
+                                <ChevronDown size={14} className={`transition-transform ${open ? '' : '-rotate-90'}`} />
+                              </button>
                               <span className="font-mono text-xs text-primary">{r.criterionCode}</span>
                               <span className="block text-text-dark">{r.criterionName}</span>
                             </td>
@@ -348,15 +367,17 @@ export default function LaborProductivityDetailPage() {
                             <td className="text-sm">{r.hasEvidence ? <span className="badge badge-success">Có</span> : <span className="badge badge-warning">Thiếu</span>}</td>
                             <td className="font-mono font-bold">{r.score}</td>
                           </tr>
-                          <tr>
-                            <td colSpan={6} className="p-0 border-t-0">
-                              {list.length === 0 ? (
-                                <span className="block px-4 py-2 text-xs text-text-light">Chưa có công việc cho tiêu chí này.</span>
-                              ) : (
-                                <TaskTable list={list} />
-                              )}
-                            </td>
-                          </tr>
+                          {open && (
+                            <tr>
+                              <td colSpan={6} className="p-0 border-t-0">
+                                {list.length === 0 ? (
+                                  <span className="block px-4 py-2 text-xs text-text-light">Chưa có công việc cho tiêu chí này.</span>
+                                ) : (
+                                  <TaskTable list={list} />
+                                )}
+                              </td>
+                            </tr>
+                          )}
                         </Fragment>
                       );
                     })}
