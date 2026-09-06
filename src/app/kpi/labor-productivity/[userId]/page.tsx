@@ -266,6 +266,34 @@ export default function LaborProductivityDetailPage() {
             </div>
           </div>
 
+          {canManage && rec && rec.status !== 'locked' && (
+            <div className="card">
+              <div className="card-header">Cập nhật kết quả tự đánh giá</div>
+              <div className="p-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="block text-xs text-text-light mb-1">Điểm (0–100)</label>
+                    <input type="number" min={0} max={100} step={0.1} value={scoreText}
+                      onChange={e => setScoreText(e.target.value)}
+                      className="w-28 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-text-light mb-1">Xếp loại</label>
+                    <select value={selGrade} onChange={e => setSelGrade(e.target.value as ProductivityGrade)}
+                      className="px-3 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:border-primary">
+                      {(Object.keys(GRADE_META) as ProductivityGrade[]).map(g => (
+                        <option key={g} value={g}>{GRADE_META[g].label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button type="button" onClick={handleSaveSelf} disabled={saving} className="btn-primary text-sm flex items-center gap-1">
+                    <Send size={14}/> {saving ? 'Đang lưu...' : 'Lưu kết quả'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="card">
             <div className="card-header">
               Kết quả tự đánh giá theo tiêu chí
@@ -348,34 +376,6 @@ export default function LaborProductivityDetailPage() {
                   {typeof rec.councilScore === 'number' && <span>{rec.councilScore} điểm</span>} {rec.councilGrade && `— ${GRADE_META[rec.councilGrade as ProductivityGrade]?.label || rec.councilGrade}`}
                 </p>
               )}
-            </div>
-          )}
-
-          {canManage && rec && rec.status !== 'locked' && (
-            <div className="card">
-              <div className="card-header">Cập nhật kết quả tự đánh giá</div>
-              <div className="p-4">
-                <div className="flex flex-wrap items-end gap-3">
-                  <div>
-                    <label className="block text-xs text-text-light mb-1">Điểm (0–100)</label>
-                    <input type="number" min={0} max={100} step={0.1} value={scoreText}
-                      onChange={e => setScoreText(e.target.value)}
-                      className="w-28 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-text-light mb-1">Xếp loại</label>
-                    <select value={selGrade} onChange={e => setSelGrade(e.target.value as ProductivityGrade)}
-                      className="px-3 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:border-primary">
-                      {(Object.keys(GRADE_META) as ProductivityGrade[]).map(g => (
-                        <option key={g} value={g}>{GRADE_META[g].label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <button type="button" onClick={handleSaveSelf} disabled={saving} className="btn-primary text-sm flex items-center gap-1">
-                    <Send size={14}/> {saving ? 'Đang lưu...' : 'Lưu kết quả'}
-                  </button>
-                </div>
-              </div>
             </div>
           )}
         </>
