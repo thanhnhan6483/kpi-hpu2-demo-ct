@@ -142,6 +142,9 @@ export default function LaborProductivityDetailPage() {
   const liveTasks = useMemo(() => tasks.filter(t => t.primaryUserId === userId && t.month === month), [tasks, userId, month]);
   const displayScore = rec?.totalScore ?? computed.totalScore;
   const displayGrade = rec?.grade ?? computed.grade;
+  const totalCri = computed.rows.length;
+  const totalDone = computed.rows.reduce((s, r) => s + r.completedTasks, 0);
+  const totalTasks = computed.rows.reduce((s, r) => s + r.totalTasks, 0);
 
   useEffect(() => {
     setScoreText(String(rec?.totalScore ?? computed.totalScore));
@@ -246,22 +249,37 @@ export default function LaborProductivityDetailPage() {
               )}
             </div>
             <div className="p-4">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                <span className="font-semibold text-text-dark">{user.fullName}</span>
-                <span className="text-xs text-text-light font-mono">{user.employeeCode}</span>
-                <span className="text-xs text-text-light">Đơn vị: <span className="font-medium text-text-dark">{unit?.name || user.unitId}</span></span>
-                <span className="text-xs text-text-light">Vị trí: <span className="font-medium text-text-dark">{positionName(user.positionId) || '-'}</span></span>
-                {templateName && (
-                  <span className="text-xs text-text-light">Bộ KPI mẫu: <span className="font-medium text-text-dark">{templateName}</span></span>
-                )}
-                <span className="text-xs text-text-light">Tháng đánh giá: <span className="font-medium text-text-dark">{month}</span></span>
-                {rec ? (
-                  <span className={`badge ${PRODUCTIVITY_STATUS_META[rec.status]?.cls || 'badge-info'}`}>{PRODUCTIVITY_STATUS_META[rec.status]?.label || rec.status}</span>
-                ) : (
-                  <span className="badge badge-info">Dự kiến (chưa lưu)</span>
-                )}
-                <span className="font-mono font-bold text-primary">{displayScore} điểm</span>
-                <span className={`badge ${GRADE_META[displayGrade].cls}`}>{GRADE_META[displayGrade].label}</span>
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="text-lg lg:text-xl font-heading font-bold text-text-dark">{user.fullName}</span>
+                    <span className="text-xs text-text-light font-mono">{user.employeeCode}</span>
+                    {rec ? (
+                      <span className={`badge ${PRODUCTIVITY_STATUS_META[rec.status]?.cls || 'badge-info'}`}>{PRODUCTIVITY_STATUS_META[rec.status]?.label || rec.status}</span>
+                    ) : (
+                      <span className="badge badge-info">Dự kiến (chưa lưu)</span>
+                    )}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="text-xs bg-bg-cream px-2.5 py-1 rounded-md text-text-light">Đơn vị: <span className="font-medium text-text-dark">{unit?.name || user.unitId}</span></span>
+                    <span className="text-xs bg-bg-cream px-2.5 py-1 rounded-md text-text-light">Vị trí: <span className="font-medium text-text-dark">{positionName(user.positionId) || '-'}</span></span>
+                    {templateName && (
+                      <span className="text-xs bg-bg-cream px-2.5 py-1 rounded-md text-text-light">Bộ KPI mẫu: <span className="font-medium text-text-dark">{templateName}</span></span>
+                    )}
+                    <span className="text-xs bg-bg-cream px-2.5 py-1 rounded-md text-text-light">Tháng đánh giá: <span className="font-medium text-text-dark">{month}</span></span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start lg:items-end border-l-2 border-primary pl-4 lg:min-w-[220px]">
+                  <span className="text-[11px] uppercase tracking-wide text-text-light">Tự đánh giá</span>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="kpi-number leading-none">{displayScore}</span>
+                    <span className="text-sm text-text-light">/ 100</span>
+                    <span className={`badge ${GRADE_META[displayGrade].cls}`}>{GRADE_META[displayGrade].label}</span>
+                  </div>
+                  <div className="progress-bar mt-2 w-48 max-w-full">
+                    <div className="progress-fill bg-primary" style={{ width: `${Math.min(100, displayScore)}%` }} />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -297,7 +315,9 @@ export default function LaborProductivityDetailPage() {
           <div className="card">
             <div className="card-header">
               Kết quả tự đánh giá theo tiêu chí
-              <span className="ml-2 text-xs font-normal text-text-light">Công việc thực hiện trong tháng: {liveTasks.length}</span>
+              <span className="ml-2 text-xs font-normal text-text-light">
+                {totalCri} tiêu chí · {totalDone}/{totalTasks} công việc hoàn thành · {liveTasks.length} công việc trong tháng
+              </span>
             </div>
             <div className="p-0">
               <div className="overflow-x-auto">
@@ -317,7 +337,14 @@ export default function LaborProductivityDetailPage() {
                             </td>
                             <td className="text-xs text-accent-green">{r.target}</td>
                             <td className="text-sm">{r.completedTasks}/{r.totalTasks}</td>
-                            <td className="text-sm">{r.resultPct}%</td>
+                            <td>
+                              <div className="flex items-center gap-2">
+                                <span className="w-9 font-mono text-sm text-right">{r.resultPct}%</span>
+                                <div className="progress-bar flex-1 min-w-[60px]">
+                                  <div className="progress-fill bg-primary" style={{ width: `${Math.min(100, r.resultPct)}%` }} />
+                                </div>
+                              </div>
+                            </td>
                             <td className="text-sm">{r.hasEvidence ? <span className="badge badge-success">Có</span> : <span className="badge badge-warning">Thiếu</span>}</td>
                             <td className="font-mono font-bold">{r.score}</td>
                           </tr>
@@ -354,28 +381,38 @@ export default function LaborProductivityDetailPage() {
           </div>
 
           {rec && (rec.selfNote || rec.managerNote || rec.councilNote || rec.managerGrade || rec.councilGrade) && (
-            <div className="space-y-2 text-sm border border-border rounded-lg p-3">
-              {rec.selfNote && (
-                <p className="text-text-light"><span className="font-medium text-text-dark">Tự nhận xét:</span> {rec.selfNote}</p>
-              )}
-              {rec.managerNote && (
-                <p className="text-text-light"><span className="font-medium text-text-dark">Nhận xét trưởng đơn vị:</span> {rec.managerNote}</p>
-              )}
-              {(rec.managerGrade || typeof rec.managerScore === 'number') && (
-                <p className="text-text-light">
-                  <span className="font-medium text-text-dark">Trưởng đơn vị:</span>{' '}
-                  {typeof rec.managerScore === 'number' && <span>{rec.managerScore} điểm</span>} {rec.managerGrade && `— ${GRADE_META[rec.managerGrade as ProductivityGrade]?.label || rec.managerGrade}`}
-                </p>
-              )}
-              {rec.councilNote && (
-                <p className="text-text-light"><span className="font-medium text-text-dark">Nhận xét Hội đồng:</span> {rec.councilNote}</p>
-              )}
-              {(rec.councilGrade || typeof rec.councilScore === 'number') && (
-                <p className="text-text-light">
-                  <span className="font-medium text-text-dark">Hội đồng:</span>{' '}
-                  {typeof rec.councilScore === 'number' && <span>{rec.councilScore} điểm</span>} {rec.councilGrade && `— ${GRADE_META[rec.councilGrade as ProductivityGrade]?.label || rec.councilGrade}`}
-                </p>
-              )}
+            <div className="card">
+              <div className="card-header">Nhận xét, đánh giá</div>
+              <div className="p-4 divide-y divide-border">
+                {rec.selfNote && (
+                  <div className="py-2 first:pt-0 last:pb-0">
+                    <p className="text-sm font-medium text-text-dark">Tự nhận xét</p>
+                    <p className="mt-1 text-sm text-text-light">{rec.selfNote}</p>
+                  </div>
+                )}
+                {(rec.managerNote || rec.managerGrade || typeof rec.managerScore === 'number') && (
+                  <div className="py-2">
+                    <p className="text-sm font-medium text-text-dark">Trưởng đơn vị</p>
+                    {rec.managerNote && <p className="mt-1 text-sm text-text-light">{rec.managerNote}</p>}
+                    {(rec.managerGrade || typeof rec.managerScore === 'number') && (
+                      <p className="mt-1 text-sm text-text-light">
+                        {typeof rec.managerScore === 'number' && <span>{rec.managerScore} điểm</span>} {rec.managerGrade && `— ${GRADE_META[rec.managerGrade as ProductivityGrade]?.label || rec.managerGrade}`}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {(rec.councilNote || rec.councilGrade || typeof rec.councilScore === 'number') && (
+                  <div className="py-2">
+                    <p className="text-sm font-medium text-text-dark">Hội đồng</p>
+                    {rec.councilNote && <p className="mt-1 text-sm text-text-light">{rec.councilNote}</p>}
+                    {(rec.councilGrade || typeof rec.councilScore === 'number') && (
+                      <p className="mt-1 text-sm text-text-light">
+                        {typeof rec.councilScore === 'number' && <span>{rec.councilScore} điểm</span>} {rec.councilGrade && `— ${GRADE_META[rec.councilGrade as ProductivityGrade]?.label || rec.councilGrade}`}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </>
