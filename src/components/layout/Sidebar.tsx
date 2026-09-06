@@ -36,7 +36,10 @@ const menuItems: MenuItem[] = [
     href: '/kpi/unit-dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    children: [{ href: '/kpi/unit-dashboard', label: 'Dashboard đơn vị' }],
+    children: [
+      { href: '/kpi/personal-dashboard', label: 'Dashboard cá nhân' },
+      { href: '/kpi/unit-dashboard', label: 'Dashboard đơn vị' },
+    ],
   },
 
   {
