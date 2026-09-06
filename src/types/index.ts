@@ -565,6 +565,7 @@ export interface JobPosition {
   code: string;
   description: string;
   kpiGroupId: string;
+  kpiTemplateId?: string;
   approvalLevel: string;
   status: 'active' | 'inactive';
 }

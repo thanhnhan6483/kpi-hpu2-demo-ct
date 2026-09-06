@@ -5,6 +5,7 @@
     "code": "CV",
     "description": "Thực hiện công việc chuyên môn, nghiệp vụ theo chức năng, nhiệm vụ của đơn vị; đây là vị trí mặc định khi tạo nhân sự mới trong demo.",
     "kpiGroupId": "grp_qt",
+    "kpiTemplateId": "tpl007",
     "approvalLevel": "Trưởng đơn vị",
     "status": "active",
     "isDefault": true
@@ -15,6 +16,7 @@
     "code": "GV",
     "description": "Thực hiện giảng dạy, nghiên cứu khoa học, phục vụ cộng đồng và các nhiệm vụ chuyên môn được phân công.",
     "kpiGroupId": "grp_dt",
+    "kpiTemplateId": "tpl002",
     "approvalLevel": "Trưởng đơn vị",
     "status": "active"
   },
@@ -24,6 +26,7 @@
     "code": "GVQL",
     "description": "Giảng dạy đồng thời thực hiện nhiệm vụ quản lý tại khoa hoặc bộ môn.",
     "kpiGroupId": "grp_qt",
+    "kpiTemplateId": "tpl002",
     "approvalLevel": "Trưởng đơn vị",
     "status": "active"
   },
@@ -42,6 +45,7 @@
     "code": "CVCNTT",
     "description": "Thực hiện nhiệm vụ về công nghệ thông tin, dữ liệu, hệ thống số và chuyển đổi số.",
     "kpiGroupId": "grp_cds",
+    "kpiTemplateId": "tpl007",
     "approvalLevel": "Trưởng đơn vị",
     "status": "active"
   },
@@ -51,6 +55,7 @@
     "code": "CVDBCL",
     "description": "Thực hiện công tác khảo thí, kiểm định và đảm bảo chất lượng giáo dục.",
     "kpiGroupId": "grp_dbcl",
+    "kpiTemplateId": "tpl007",
     "approvalLevel": "Trưởng đơn vị",
     "status": "active"
   },
@@ -60,6 +65,7 @@
     "code": "CVHTQT",
     "description": "Thực hiện công tác hợp tác quốc tế, trao đổi và các hoạt động quốc tế hóa giáo dục đại học.",
     "kpiGroupId": "grp_qth",
+    "kpiTemplateId": "tpl007",
     "approvalLevel": "Trưởng đơn vị",
     "status": "active"
   },
