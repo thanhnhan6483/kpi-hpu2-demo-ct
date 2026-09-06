@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Modal from '@/components/ui/Modal';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import academicYearsData from '@/data/academic-years.json';
-import positionsData from '@/data/positions.json';
+import { positionName, suggestedTemplateIdForPosition } from '@/lib/jobPositionTemplate';
 
 interface UserData {
   id: string;
@@ -101,16 +101,13 @@ export default function IndividualTemplateAssignmentsPage() {
   const unitNames: Record<string, UnitData> = {};
   units.forEach(u => { unitNames[u.id] = u; });
 
-  const positionNames: Record<string, string> = {};
-  (positionsData as { id: string; name: string }[]).forEach(p => { positionNames[p.id] = p.name; });
-
   const yearName = (academicYearsData as AcademicYear[]).find(y => y.id === yearId)?.name || yearId;
 
   const filteredUsers = users.filter(u => !unitFilter || u.unitId === unitFilter);
 
   const getAssignment = (userId: string) => assignments.find(a => a.userId === userId && a.academicYearId === yearId);
 
-  const suggestTemplateId = (unitType: string) => (unitType === 'faculty' ? 'tpl002' : 'tpl007');
+  const suggestTemplateId = (user: UserData) => suggestedTemplateIdForPosition(user.positionId, unitNames[user.unitId]?.type);
 
   const handleSave = async (data: { kpiTemplateId: string; status: 'active' | 'inactive' }) => {
     if (!editUser) return;
@@ -154,7 +151,7 @@ export default function IndividualTemplateAssignmentsPage() {
       await apiPost('/api/individual-template-assignments', {
         userId: u.id,
         academicYearId: yearId,
-        kpiTemplateId: suggestTemplateId(unit.type),
+        kpiTemplateId: suggestTemplateId(u),
         status: 'active',
       });
       created += 1;
@@ -173,7 +170,7 @@ export default function IndividualTemplateAssignmentsPage() {
         <div>
           <h1 className="text-2xl font-heading font-bold text-text-dark">Gán Bộ KPI mẫu cá nhân</h1>
           <p className="text-sm text-text-light mt-1">
-            Gán Bộ KPI mẫu cho từng nhân sự theo năm học. Quy tắc đề xuất: đơn vị khối Giảng dạy → Bộ KPI Giảng viên, đơn vị khối Hành chính → Bộ KPI Chuyên viên.
+            Gán Bộ KPI mẫu cho từng nhân sự theo năm học. Quy tắc đề xuất: ưu tiên theo vị trí việc làm (Chuyên viên → Bộ KPI Chuyên viên, Giảng viên → Bộ KPI Giảng viên); vị trí chưa gắn bộ mẫu thì fallback theo khối đơn vị (Giảng dạy → Giảng viên, Hành chính → Chuyên viên).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -238,7 +235,7 @@ export default function IndividualTemplateAssignmentsPage() {
                       </span>
                     </td>
                     <td className="text-sm">{unit?.name || u.unitId}</td>
-                    <td className="text-sm">{positionNames[u.positionId] || '-'}</td>
+                    <td className="text-sm">{positionName(u.positionId) || '-'}</td>
                     <td className="text-sm">
                       {asg && templates.find(t => t.id === asg.kpiTemplateId) ? (
                         <span className="flex flex-col">
@@ -293,7 +290,7 @@ export default function IndividualTemplateAssignmentsPage() {
             unit={unitNames[editUser.unitId]}
             templates={templates}
             existing={getAssignment(editUser.id)}
-            suggested={unitNames[editUser.unitId] ? suggestTemplateId(unitNames[editUser.unitId].type) : ''}
+            suggested={suggestTemplateId(editUser)}
             onCancel={() => { setShowModal(false); setEditUser(null); }}
             onSubmit={(data) => handleSave(data)}
             yearName={yearName}
@@ -363,7 +360,7 @@ function AssignmentForm({ user, unit, templates, existing, suggested, onCancel, 
           ))}
         </select>
         {!existing && suggested && (
-          <p className="mt-1 text-xs text-text-light">Gợi ý từ quy tắc theo đơn vị: <span className="text-accent-green font-medium">{templates.find(t => t.id === suggested)?.name || suggested}</span></p>
+          <p className="mt-1 text-xs text-text-light">Gợi ý theo vị trí việc làm: <span className="text-accent-green font-medium">{templates.find(t => t.id === suggested)?.name || suggested}</span></p>
         )}
       </div>
       <div className="flex justify-end gap-2 pt-4 border-t">

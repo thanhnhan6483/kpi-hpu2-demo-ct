@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal';
 import academicYearsData from '@/data/academic-years.json';
 import unitsData from '@/data/units.json';
 import { indicatorMeta, currentMonthKey, yearMonths } from '@/lib/laborProductivity';
+import { positionName, suggestedTemplateIdForPosition } from '@/lib/jobPositionTemplate';
 import type { UnitWorkTask, IndividualTemplateAssignment } from '@/types';
 
 interface SoftwareSource { id: string; name: string; description?: string; status?: string; }
@@ -46,6 +47,9 @@ interface MyCriterion {
 
 const unitNames: Record<string, string> = {};
 (unitsData as { id: string; name: string }[]).forEach(u => { unitNames[u.id] = u.name; });
+
+const unitTypeById: Record<string, string> = {};
+(unitsData as { id: string; type: string }[]).forEach(u => { unitTypeById[u.id] = u.type; });
 
 const lastDayOfMonth = (key: string) => {
   const [mo, yr] = key.split('/').map(Number);
@@ -89,6 +93,12 @@ export default function MyWorkPlanPage() {
   }, []);
 
   const currentUser = users.find(u => u.id === currentUserId);
+  const myPositionName = positionName(currentUser?.positionId);
+  const suggestedForPosition = suggestedTemplateIdForPosition(
+    currentUser?.positionId,
+    currentUser ? unitTypeById[currentUser.unitId] : undefined
+  );
+  const suggestedTemplateForPosition = templates.find(t => t.id === suggestedForPosition);
   const myAsg = assignments.find(
     a => a.userId === currentUserId && a.academicYearId === activeYearId && a.status === 'active'
   );
@@ -170,6 +180,11 @@ export default function MyWorkPlanPage() {
         <div className="p-4">
           {myAsg ? (
             <>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                  {myPositionName ? `Vị trí việc làm: ${myPositionName}` : 'Chưa xác định vị trí việc làm'}
+                </span>
+              </div>
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-3">
                 <span className="text-sm font-semibold text-text-dark">{myTemplate?.name || myAsg.kpiTemplateId}</span>
                 <span className="text-xs text-text-light">· Năm học {activeYear?.name}</span>
@@ -190,9 +205,14 @@ export default function MyWorkPlanPage() {
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-2 text-sm text-text-light">
-              <Layers size={16} className="shrink-0" />
-              Bạn chưa được gán Bộ KPI mẫu cho năm học {activeYear?.name}. Liên hệ quản trị viên để gán tại <span className="text-primary">Quản trị → Danh mục → Gán Bộ KPI mẫu cá nhân</span>.
+            <div className="flex items-start gap-2 text-sm text-text-light">
+              <Layers size={16} className="shrink-0 mt-0.5" />
+              <div>
+                {myPositionName && <p>Vị trí việc làm của bạn: <span className="font-medium text-text-dark">{myPositionName}</span>.</p>}
+                <p>Bạn chưa được gán Bộ KPI mẫu cho năm học {activeYear?.name}.
+                  {suggestedTemplateForPosition && <> Bộ KPI mẫu theo vị trí của bạn là <span className="font-medium text-primary">{suggestedTemplateForPosition.name}</span>.</>}
+                  {' '}Liên hệ quản trị viên để gán tại <span className="text-primary">Quản trị → Danh mục → Gán Bộ KPI mẫu cá nhân</span>.</p>
+              </div>
             </div>
           )}
         </div>
