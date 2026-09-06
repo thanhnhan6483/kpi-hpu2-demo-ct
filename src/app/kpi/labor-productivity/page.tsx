@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calculator, Send, Lock, ClipboardList, CheckCheck, RefreshCw } from 'lucide-react';
+import { Calculator, Send, Lock, ClipboardList, CheckCheck } from 'lucide-react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import Modal from '@/components/ui/Modal';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
@@ -15,13 +16,11 @@ import {
   targetTextOf,
   yearMonths,
   currentMonthKey,
-  effectiveProgress,
   PRODUCTIVITY_STATUS_META,
   finalScoreOf,
   finalGradeOf,
 } from '@/lib/laborProductivity';
 import { positionName } from '@/lib/jobPositionTemplate';
-import type { SyncMonthResult } from '@/lib/khctSync';
 import type { TemplateItemDef, CriterionAggRow, ProductivityGrade } from '@/lib/laborProductivity';
 import type { IndividualTemplateAssignment, LaborProductivity, ProductivityCriterionRow, UnitWorkTask } from '@/types';
 
@@ -30,17 +29,6 @@ interface UserBrief { id: string; fullName: string; employeeCode: string; unitId
 interface UnitData { id: string; name: string; code: string; type: string; managerId: string; status: string; }
 interface KpiTemplateBrief { id: string; name: string; targetLevel: string; status: string; }
 interface TemplateItemBrief { id: string; templateId: string; indicatorId: string; weight: number; targetValue: number; capRate: number; }
-
-interface DetailState {
-  user: UserBrief;
-  record: LaborProductivity | null;
-  rows: CriterionAggRow[];
-  tasks: UnitWorkTask[];
-  totalScore: number;
-  grade: ProductivityGrade;
-  templateName: string;
-  month: string;
-}
 
 export default function LaborProductivityPage() {
   const { data: session } = useSession();
@@ -58,7 +46,6 @@ export default function LaborProductivityPage() {
   const [tasks, setTasks] = useState<UnitWorkTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [detail, setDetail] = useState<DetailState | null>(null);
   const [review, setReview] = useState<{ user: UserBrief; record: LaborProductivity } | null>(null);
 
   const load = useCallback(async () => {
@@ -136,12 +123,7 @@ export default function LaborProductivityPage() {
 
   const computeUser = (user: UserBrief) => computeUserFor(user, month);
 
-  const tasksFor = (user: UserBrief, m: string) =>
-    tasks.filter(t => t.primaryUserId === user.id && t.month === m);
-
   const recordOf = (userId: string) => records.find(r => r.userId === userId && r.month === month);
-
-  const recordFor = (userId: string, m: string) => records.find(r => r.userId === userId && r.month === m);
 
   const summary = {
     total: unitUsers.length,
@@ -227,47 +209,6 @@ export default function LaborProductivityPage() {
     setReview(null);
     setMessage(lock ? `Đã chốt kết quả tháng ${month}.` : `Đã cập nhật nhận xét của Hội đồng cho tháng ${month}.`);
   };
-
-  const handleSaveSelfResult = async (record: LaborProductivity | null, score: number, grade: ProductivityGrade) => {
-    if (!record || record.status === 'locked') return;
-    const updated = await apiPut<LaborProductivity>(`/api/labor-productivity/${record.id}`, { totalScore: score, grade });
-    setRecords(prev => prev.map(r => (r.id === updated.id ? updated : r)));
-    setDetail(prev => (prev && prev.record?.id === updated.id ? { ...prev, record: updated, totalScore: updated.totalScore, grade: updated.grade } : prev));
-    setMessage(`Đã cập nhật kết quả tự đánh giá cho ${record.userName}.`);
-  };
-
-  const handleSyncDetail = async (user: UserBrief, m: string) => {
-    const res = await apiPost<{ synced: SyncMonthResult }>('/api/unit-work-plans/sync-month', { userId: user.id, month: m });
-    const fresh = await apiGet<UnitWorkTask[]>('/api/unit-work-plans');
-    setTasks(fresh);
-    const computed = computeUserFor(user, m);
-    setDetail(prev => (prev && prev.user.id === user.id && prev.month === m ? {
-      ...prev,
-      tasks: fresh.filter(t => t.primaryUserId === user.id && t.month === m),
-      rows: computed.rows,
-      totalScore: computed.totalScore,
-      grade: computed.grade,
-    } : prev));
-    setMessage(`Đã đồng bộ dữ liệu tháng ${m} cho ${user.fullName}: tạo ${res.synced.createdAtCount}, làm mới ${res.synced.refreshedCount} công việc.`);
-  };
-
-  const openDetailFor = (user: UserBrief, m: string) => {
-    const rec = recordFor(user.id, m);
-    const computed = computeUserFor(user, m);
-    const asg = asgByUser[user.id];
-    setDetail({
-      user,
-      record: rec || null,
-      rows: computed.rows,
-      tasks: tasksFor(user, m),
-      totalScore: rec?.totalScore ?? computed.totalScore,
-      grade: rec?.grade ?? computed.grade,
-      templateName: asg ? tplName[asg.kpiTemplateId] || asg.kpiTemplateId : '',
-      month: m,
-    });
-  };
-
-  const openDetail = (user: UserBrief) => openDetailFor(user, month);
 
   const stats = [
     { label: 'Nhân sự trong đơn vị', value: summary.total, icon: ClipboardList, color: 'bg-primary' },
@@ -381,9 +322,9 @@ export default function LaborProductivityPage() {
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-1">
-                        <button onClick={() => openDetail(u)} className="btn-secondary text-xs flex items-center gap-1">
-                          <Calculator size={12}/> Chi tiết
-                        </button>
+                        <Link href={`/kpi/labor-productivity/${u.id}?month=${encodeURIComponent(month)}`} className="btn-secondary text-xs flex items-center gap-1">
+                          <Calculator size={12}/> Cá nhân ĐG
+                        </Link>
                         {asg && !isLocked && (
                           <button onClick={() => handleAggregate(u)} className="btn-secondary text-xs flex items-center gap-1">
                             <Send size={12}/> Tổng hợp
@@ -423,18 +364,6 @@ export default function LaborProductivityPage() {
         {loading && <div className="p-8 text-center text-text-light">Đang tải...</div>}
       </div>
 
-      {detail && (
-        <DetailModal
-          state={detail}
-          month={detail.month}
-          onClose={() => setDetail(null)}
-          canEditSelfResult={currentUserId === 'u001' || canReview}
-          onSaveSelfResult={(score, grade) => handleSaveSelfResult(detail.record, score, grade)}
-          canSync={currentUserId === 'u001' || canReview}
-          onSync={() => handleSyncDetail(detail.user, detail.month)}
-        />
-      )}
-
       {review && (
         <ReviewModal
           user={review.user}
@@ -448,215 +377,6 @@ export default function LaborProductivityPage() {
       )}
 
       </div>
-  );
-}
-
-function DetailModal({ state, month, onClose, canEditSelfResult, onSaveSelfResult, canSync, onSync }: {
-  state: DetailState;
-  month: string;
-  onClose: () => void;
-  canEditSelfResult: boolean;
-  onSaveSelfResult: (score: number, grade: ProductivityGrade) => void;
-  canSync: boolean;
-  onSync: () => Promise<void>;
-}) {
-  const { user, record, rows, tasks, totalScore, grade, templateName } = state;
-  const [scoreText, setScoreText] = useState(String(record?.totalScore ?? totalScore));
-  const [selGrade, setSelGrade] = useState<ProductivityGrade>(record?.grade ?? grade);
-  const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const canEdit = canEditSelfResult && !!record && record.status !== 'locked';
-
-  const runSync = async () => {
-    setSyncing(true);
-    try {
-      await onSync();
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const saveSelfResult = async () => {
-    if (!record) return;
-    const n = Number(scoreText);
-    if (scoreText === '' || isNaN(n)) return;
-    const score = Math.min(100, Math.max(0, Math.round(n * 10) / 10));
-    setSaving(true);
-    try {
-      await onSaveSelfResult(score, selGrade);
-      setScoreText(String(score));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const TASK_STATUS: Record<UnitWorkTask['status'], { label: string; cls: string }> = {
-    assigned: { label: 'Chưa bắt đầu', cls: 'badge-info' },
-    in_progress: { label: 'Đang thực hiện', cls: 'badge-warning' },
-    done: { label: 'Hoàn thành', cls: 'badge-success' },
-  };
-
-  const TaskTable = ({ list }: { list: UnitWorkTask[] }) => (
-    <div className="overflow-x-auto rounded-lg border border-border mt-1">
-      <table className="table text-sm">
-        <thead>
-          <tr><th>Công việc</th><th>Chỉ tiêu</th><th>Kết quả</th><th>%</th><th>Trạng thái</th><th>Nguồn</th><th>Hạn</th></tr>
-        </thead>
-        <tbody>
-          {list.map(t => (
-            <tr key={t.id}>
-              <td className="max-w-[220px]">
-                <span className="font-medium text-text-dark">{t.taskName || t.title}</span>
-                {t.note && <span className="block text-[11px] text-text-light">{t.note}</span>}
-              </td>
-              <td className="text-xs text-accent-green max-w-[180px] break-words">{t.chiTieu || '—'}</td>
-              <td className="text-xs text-text-light max-w-[220px] break-words">{t.result || t.reportNote || '—'}</td>
-              <td className="font-mono text-sm">{isNaN(effectiveProgress(t)) ? '—' : `${effectiveProgress(t)}%`}</td>
-              <td><span className={`badge ${TASK_STATUS[t.status]?.cls || 'badge-info'}`}>{TASK_STATUS[t.status]?.label || t.status}</span></td>
-              <td>{t.resultSource === 'sync'
-                ? <span className="badge badge-info whitespace-nowrap">Từ phần mềm khác{ t.syncInfo?.sourceName ? `: ${t.syncInfo.sourceName}` : ''}</span>
-                : <span className="badge whitespace-nowrap">Kế hoạch cá nhân</span>}</td>
-              <td className="text-xs text-text-light whitespace-nowrap">{t.dueDate || '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  return (
-    <Modal isOpen onClose={onClose} title={`Năng suất lao động — ${user.fullName} (Tháng ${month})`} maxWidth="max-w-4xl">
-      <div className="space-y-4">
-        <div className="p-3 bg-bg-cream rounded-lg">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            <span className="font-semibold text-text-dark">{user.fullName}</span>
-            <span className="text-xs text-text-light font-mono">{user.employeeCode}</span>
-            {templateName && (
-              <span className="text-xs text-text-light">Bộ KPI mẫu: <span className="font-medium text-text-dark">{templateName}</span></span>
-            )}
-            {record && (
-              <span className={`badge ${PRODUCTIVITY_STATUS_META[record.status]?.label ? PRODUCTIVITY_STATUS_META[record.status].cls : 'badge-info'}`}>
-                {PRODUCTIVITY_STATUS_META[record.status]?.label || record.status}
-              </span>
-            )}
-            {!record && <span className="badge badge-info">Dự kiến (chưa lưu)</span>}
-            <span className="font-mono font-bold text-primary">{totalScore} điểm</span>
-            <span className={`badge ${GRADE_META[grade].cls}`}>{GRADE_META[grade].label}</span>
-            {canSync && (
-              <button onClick={runSync} disabled={syncing} className="btn-primary text-xs flex items-center gap-1">
-                <RefreshCw size={12}/> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
-              </button>
-            )}
-            <span className="text-xs text-text-light">Vị trí: <span className="font-medium text-text-dark">{positionName(user.positionId) || '-'}</span></span>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="table text-sm">
-            <thead>
-              <tr><th>Tiêu chí</th><th>Chỉ tiêu</th><th>Hoàn thành</th><th>% thực hiện</th><th>Minh chứng</th><th>Điểm</th></tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.templateItemId || r.criterionCode}>
-                  <td>
-                    <span className="font-mono text-xs text-primary">{r.criterionCode}</span>
-                    <span className="block text-text-dark">{r.criterionName}</span>
-                  </td>
-                  <td className="text-xs text-accent-green">{r.target}</td>
-                  <td className="text-sm">{r.completedTasks}/{r.totalTasks}</td>
-                  <td className="text-sm">{r.resultPct}%</td>
-                  <td className="text-sm">{r.hasEvidence ? <span className="badge badge-success">Có</span> : <span className="badge badge-warning">Thiếu</span>}</td>
-                  <td className="font-mono font-bold">{r.score}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-text-light text-sm py-6">Người này chưa có Bộ KPI mẫu</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-text-dark mb-2">Công việc thực hiện trong tháng ({tasks.length})</h3>
-          {tasks.length === 0 && <p className="text-sm text-text-light">Chưa có công việc nào được tổng hợp cho tháng này.</p>}
-          {rows.map(r => {
-            const list = tasks.filter(t => t.templateItemId === r.templateItemId);
-            if (list.length === 0) return null;
-            return (
-              <div key={r.templateItemId || r.criterionCode} className="mb-3">
-                <p className="text-sm font-medium text-text-dark">
-                  <span className="font-mono text-xs text-primary">{r.criterionCode}</span> {r.criterionName}
-                </p>
-                <TaskTable list={list} />
-              </div>
-            );
-          }).filter(Boolean)}
-          {(() => {
-            const grouped = new Set(rows.map(r => r.templateItemId));
-            const ungrouped = tasks.filter(t => !t.templateItemId || !grouped.has(t.templateItemId));
-            if (ungrouped.length === 0) return null;
-            return (
-              <div>
-                <p className="text-sm font-medium text-text-dark">Chưa gán chỉ tiêu</p>
-                <TaskTable list={ungrouped} />
-              </div>
-            );
-          })()}
-        </div>
-        {record && (record.selfNote || record.managerNote || record.councilNote || record.managerGrade || record.councilGrade) && (
-          <div className="space-y-2 text-sm border border-border rounded-lg p-3">
-            {record.selfNote && (
-              <p className="text-text-light"><span className="font-medium text-text-dark">Tự nhận xét:</span> {record.selfNote}</p>
-            )}
-            {record.managerNote && (
-              <p className="text-text-light"><span className="font-medium text-text-dark">Nhận xét trưởng đơn vị:</span> {record.managerNote}</p>
-            )}
-            {(record.managerGrade || typeof record.managerScore === 'number') && (
-              <p className="text-text-light">
-                <span className="font-medium text-text-dark">Trưởng đơn vị:</span>{' '}
-                {typeof record.managerScore === 'number' && <span>{record.managerScore} điểm</span>} {record.managerGrade && `— ${GRADE_META[record.managerGrade as ProductivityGrade]?.label || record.managerGrade}`}
-              </p>
-            )}
-            {record.councilNote && (
-              <p className="text-text-light"><span className="font-medium text-text-dark">Nhận xét Hội đồng:</span> {record.councilNote}</p>
-            )}
-            {(record.councilGrade || typeof record.councilScore === 'number') && (
-              <p className="text-text-light">
-                <span className="font-medium text-text-dark">Hội đồng:</span>{' '}
-                {typeof record.councilScore === 'number' && <span>{record.councilScore} điểm</span>} {record.councilGrade && `— ${GRADE_META[record.councilGrade as ProductivityGrade]?.label || record.councilGrade}`}
-              </p>
-            )}
-          </div>
-        )}
-        {canEdit && (
-          <div className="border border-border rounded-lg p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-text-dark">Cập nhật kết quả tự đánh giá</h3>
-            <div className="flex flex-wrap items-end gap-3">
-              <div>
-                <label className="block text-xs text-text-light mb-1">Điểm (0–100)</label>
-                <input type="number" min={0} max={100} step={0.1} value={scoreText}
-                  onChange={e => setScoreText(e.target.value)}
-                  className="w-28 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" />
-              </div>
-              <div>
-                <label className="block text-xs text-text-light mb-1">Xếp loại</label>
-                <select value={selGrade} onChange={e => setSelGrade(e.target.value as ProductivityGrade)}
-                  className="px-3 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:border-primary">
-                  {(Object.keys(GRADE_META) as ProductivityGrade[]).map(g => (
-                    <option key={g} value={g}>{GRADE_META[g].label}</option>
-                  ))}
-                </select>
-              </div>
-              <button type="button" onClick={saveSelfResult} disabled={saving} className="btn-primary text-sm flex items-center gap-1">
-                <Send size={14}/> {saving ? 'Đang lưu...' : 'Lưu kết quả'}
-              </button>
-            </div>
-          </div>
-        )}
-        <div className="flex justify-end pt-4 border-t">
-          <button onClick={onClose} className="btn-secondary">Đóng</button>
-        </div>
-      </div>
-    </Modal>
   );
 }
 
