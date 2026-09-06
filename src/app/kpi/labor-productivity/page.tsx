@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calculator, Send, Lock, ClipboardList, CheckCheck } from 'lucide-react';
+import { Calculator, Send, Lock, ClipboardList, CheckCheck, RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Modal from '@/components/ui/Modal';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
@@ -21,6 +21,7 @@ import {
   finalGradeOf,
 } from '@/lib/laborProductivity';
 import { positionName } from '@/lib/jobPositionTemplate';
+import type { SyncMonthResult } from '@/lib/khctSync';
 import type { TemplateItemDef, CriterionAggRow, ProductivityGrade } from '@/lib/laborProductivity';
 import type { IndividualTemplateAssignment, LaborProductivity, ProductivityCriterionRow, UnitWorkTask } from '@/types';
 
@@ -235,6 +236,21 @@ export default function LaborProductivityPage() {
     setMessage(`Đã cập nhật kết quả tự đánh giá cho ${record.userName}.`);
   };
 
+  const handleSyncDetail = async (user: UserBrief, m: string) => {
+    const res = await apiPost<{ synced: SyncMonthResult }>('/api/unit-work-plans/sync-month', { userId: user.id, month: m });
+    const fresh = await apiGet<UnitWorkTask[]>('/api/unit-work-plans');
+    setTasks(fresh);
+    const computed = computeUserFor(user, m);
+    setDetail(prev => (prev && prev.user.id === user.id && prev.month === m ? {
+      ...prev,
+      tasks: fresh.filter(t => t.primaryUserId === user.id && t.month === m),
+      rows: computed.rows,
+      totalScore: computed.totalScore,
+      grade: computed.grade,
+    } : prev));
+    setMessage(`Đã đồng bộ dữ liệu tháng ${m} cho ${user.fullName}: tạo ${res.synced.createdAtCount}, làm mới ${res.synced.refreshedCount} công việc.`);
+  };
+
   const openDetailFor = (user: UserBrief, m: string) => {
     const rec = recordFor(user.id, m);
     const computed = computeUserFor(user, m);
@@ -414,6 +430,8 @@ export default function LaborProductivityPage() {
           onClose={() => setDetail(null)}
           canEditSelfResult={currentUserId === 'u001' || canReview}
           onSaveSelfResult={(score, grade) => handleSaveSelfResult(detail.record, score, grade)}
+          canSync={currentUserId === 'u001' || canReview}
+          onSync={() => handleSyncDetail(detail.user, detail.month)}
         />
       )}
 
@@ -433,18 +451,30 @@ export default function LaborProductivityPage() {
   );
 }
 
-function DetailModal({ state, month, onClose, canEditSelfResult, onSaveSelfResult }: {
+function DetailModal({ state, month, onClose, canEditSelfResult, onSaveSelfResult, canSync, onSync }: {
   state: DetailState;
   month: string;
   onClose: () => void;
   canEditSelfResult: boolean;
   onSaveSelfResult: (score: number, grade: ProductivityGrade) => void;
+  canSync: boolean;
+  onSync: () => Promise<void>;
 }) {
   const { user, record, rows, tasks, totalScore, grade, templateName } = state;
   const [scoreText, setScoreText] = useState(String(record?.totalScore ?? totalScore));
   const [selGrade, setSelGrade] = useState<ProductivityGrade>(record?.grade ?? grade);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const canEdit = canEditSelfResult && !!record && record.status !== 'locked';
+
+  const runSync = async () => {
+    setSyncing(true);
+    try {
+      await onSync();
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const saveSelfResult = async () => {
     if (!record) return;
@@ -512,6 +542,11 @@ function DetailModal({ state, month, onClose, canEditSelfResult, onSaveSelfResul
             {!record && <span className="badge badge-info">Dự kiến (chưa lưu)</span>}
             <span className="font-mono font-bold text-primary">{totalScore} điểm</span>
             <span className={`badge ${GRADE_META[grade].cls}`}>{GRADE_META[grade].label}</span>
+            {canSync && (
+              <button onClick={runSync} disabled={syncing} className="btn-primary text-xs flex items-center gap-1">
+                <RefreshCw size={12}/> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
+              </button>
+            )}
             <span className="text-xs text-text-light">Vị trí: <span className="font-medium text-text-dark">{positionName(user.positionId) || '-'}</span></span>
           </div>
         </div>

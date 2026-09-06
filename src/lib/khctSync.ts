@@ -75,7 +75,7 @@ export function syncMonthFromSources(info: {
     const dup = tasks.some(t => t.khctTaskId === khct.id && t.primaryUserId === user.id);
     if (dup) return;
     const criterion = criterionFor(criteria, i);
-    const source = sourceOf(khct.softwareId || 'sw001');
+    const source = khct.softwareId ? sourceOf(khct.softwareId) : (sources.length > 0 ? sources[i % sources.length] : undefined);
     const sourceName = source?.name || FALLBACK_SOURCE;
     const synced = buildSyncedResult(khct.chiTieu, sourceName, randomRecords());
     tasks.push({
