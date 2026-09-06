@@ -15,6 +15,13 @@ interface WorkEvidence {
   status?: string;
 }
 
+interface MeasurementUnit {
+  id: string;
+  code: string;
+  name: string;
+  status?: string;
+}
+
 interface ParsedTarget {
   cmp: '>=' | '<=' | '>' | '<' | '=';
   value: number;
@@ -30,6 +37,8 @@ interface IndicatorTaskRow {
   reach: boolean;
 }
 
+type IndicatorStatusKey = 'no_data' | 'updating' | 'fail' | 'partial' | 'ok';
+
 interface IndicatorRow {
   indicator: SchoolKPICatalog;
   groupName: string;
@@ -38,8 +47,11 @@ interface IndicatorRow {
   unreported: number;
   fail: number;
   doneOk: number;
+  statusKey: IndicatorStatusKey;
   statusLabel: string;
   statusCls: string;
+  unitName: string;
+  gapText: string;
 }
 
 const statusLabelMap: Record<string, string> = {
@@ -54,6 +66,14 @@ const statusClsMap: Record<string, string> = {
   not_started: 'badge-info',
 };
 
+const statusMeta: Record<IndicatorStatusKey, { label: string; cls: string }> = {
+  no_data: { label: 'Chưa có dữ liệu', cls: 'badge-info' },
+  updating: { label: 'Đang cập nhật', cls: 'badge-warning' },
+  fail: { label: 'Chưa đạt', cls: 'badge-danger' },
+  partial: { label: 'Đạt một phần', cls: 'badge-warning' },
+  ok: { label: 'Đạt', cls: 'badge-success' },
+};
+
 function csvEscape(val: string | number): string {
   const s = String(val);
   if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
@@ -62,9 +82,17 @@ function csvEscape(val: string | number): string {
 
 function parseTarget(target?: string): ParsedTarget | null {
   if (!target) return null;
-  const m = String(target).trim().match(/^(>=|<=|>|<|=)?\s*(\d+(?:\.\d+)?)\s*(%)?/);
+  const m = String(target).trim().match(/^(>=|<=|>|<|=)?\s*(\d+(?:[.,]\d+)?)\s*(%)?/);
   if (!m) return null;
-  return { cmp: (m[1] || '>=') as ParsedTarget['cmp'], value: Number(m[2]), isPct: !!m[3] };
+  return { cmp: (m[1] || '>=') as ParsedTarget['cmp'], value: Number(m[2].replace(',', '.')), isPct: !!m[3] };
+}
+
+function academicYearOfMonth(month?: string): string {
+  if (!month) return '';
+  const [m, y] = month.split('/').map(s => Number(s));
+  if (!m || !y) return '';
+  const start = m >= 8 ? y : y - 1;
+  return `${start}-${start + 1}`;
 }
 
 function cmpValue(value: number, t: ParsedTarget): boolean {
@@ -95,25 +123,29 @@ export default function KpiIndicatorReportPage() {
   const [workTasks, setWorkTasks] = useState<UnitWorkTask[]>([]);
   const [evidences, setEvidences] = useState<WorkEvidence[]>([]);
   const [groups, setGroups] = useState<KPIGroup[]>([]);
+  const [units, setUnits] = useState<MeasurementUnit[]>([]);
 
-  const [monthFilter, setMonthFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [groupFilter, setGroupFilter] = useState('');
   const [keyword, setKeyword] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
-    const [ind, t, w, ev, g] = await Promise.all([
+    const [ind, t, w, ev, g, mu] = await Promise.all([
       apiGet<SchoolKPICatalog[]>('/api/school-kpi-catalog'),
       apiGet<KHCTTask[]>('/api/khct'),
       apiGet<UnitWorkTask[]>('/api/unit-work-plans'),
       apiGet<WorkEvidence[]>('/api/evidences'),
       apiGet<KPIGroup[]>('/api/kpi-groups'),
+      apiGet<MeasurementUnit[]>('/api/measurement-units'),
     ]);
     setIndicators(ind);
     setTasks(t);
     setWorkTasks(w);
     setEvidences(ev);
     setGroups(g);
+    setUnits(mu);
   }, []);
 
   useEffect(() => {
@@ -159,21 +191,20 @@ export default function KpiIndicatorReportPage() {
     [tasks, activeCodes],
   );
 
-  const months = useMemo(
-    () => Array.from(new Set(matchedTasks.map(t => t.month).filter(Boolean))).sort(),
+  const unitById = useMemo(() => {
+    const map = new Map<string, string>();
+    units.forEach(u => map.set(u.id, u.name));
+    return map;
+  }, [units]);
+
+  const yearOptions = useMemo(
+    () => Array.from(new Set(matchedTasks.map(t => academicYearOfMonth(t.month)).filter(Boolean))).sort().reverse(),
     [matchedTasks],
   );
 
-  useEffect(() => {
-    if (monthFilter) return;
-    const now = new Date();
-    const currentMonth = `${now.getMonth() + 1}/${now.getFullYear()}`;
-    setMonthFilter(months.includes(currentMonth) ? currentMonth : (months[0] || ''));
-  }, [months, monthFilter]);
-
-  const tasksInMonth = useMemo(
-    () => (monthFilter && monthFilter !== 'all' ? matchedTasks.filter(t => t.month === monthFilter) : matchedTasks),
-    [matchedTasks, monthFilter],
+  const tasksInScope = useMemo(
+    () => (yearFilter ? matchedTasks.filter(t => academicYearOfMonth(t.month) === yearFilter) : matchedTasks),
+    [matchedTasks, yearFilter],
   );
 
   const buildTaskRow = (task: KHCTTask, target?: string): IndicatorTaskRow => {
@@ -187,9 +218,14 @@ export default function KpiIndicatorReportPage() {
     const pct = parsePct(synth.result) ?? parsePct(task.taskResult || '');
     const pt = parseTarget(target);
     let reach = task.taskStatus === 'done';
-    if (!reach && pt) {
-      if (pt.isPct && pct != null) reach = cmpValue(pct, pt);
-      else if (!pt.isPct) reach = cmpValue(synth.doneSub, pt);
+    if (!reach) {
+      if (pt) {
+        if (pt.isPct && pct != null) reach = cmpValue(pct, pt);
+        else if (!pt.isPct && synth.totalSub > 0) reach = cmpValue(synth.doneSub, pt);
+        else if (!pt.isPct) reach = synth.status === 'done';
+      } else {
+        reach = synth.status === 'done';
+      }
     }
     const hasData = !!(task.taskStatus || task.taskResult || jobs.length > 0);
     return { task, jobs, synth, evidenceNames, hasData, reach };
@@ -197,7 +233,8 @@ export default function KpiIndicatorReportPage() {
 
   const indicatorRows = useMemo<IndicatorRow[]>(() => {
     return activeIndicators.map(ind => {
-      const tasks = tasksInMonth
+      const unitName = unitById.get(ind.unitId) || '';
+      const tasks = tasksInScope
         .filter(t => (t.kpiCodes || '').split(';').map(c => c.trim()).filter(Boolean).includes(ind.code))
         .map(t => buildTaskRow(t, ind.target));
       const reported = tasks.filter(r => r.hasData).length;
@@ -205,24 +242,23 @@ export default function KpiIndicatorReportPage() {
       const unreported = tasks.length - reported;
       const doneOk = tasks.filter(r => r.reach).length;
 
-      let statusLabel = 'Không có nhiệm vụ';
-      let statusCls = 'badge-info';
-      if (tasks.length === 0) {
-        statusLabel = 'Không có nhiệm vụ';
-        statusCls = 'badge-info';
-      } else if (fail > 0) {
-        statusLabel = 'Chưa đạt';
-        statusCls = 'badge-danger';
-      } else if (unreported > 0) {
-        statusLabel = 'Đang cập nhật';
-        statusCls = 'badge-warning';
-      } else if (doneOk === tasks.length) {
-        statusLabel = 'Đạt';
-        statusCls = 'badge-success';
-      } else {
-        statusLabel = 'Đạt một phần';
-        statusCls = 'badge-warning';
+      let statusKey: IndicatorStatusKey;
+      if (tasks.length === 0) statusKey = 'no_data';
+      else if (fail > 0) statusKey = 'fail';
+      else if (reported === 0) statusKey = 'updating';
+      else if (unreported > 0) statusKey = 'partial';
+      else statusKey = 'ok';
+
+      let gapText = '';
+      if (statusKey === 'fail') {
+        const pt = parseTarget(ind.target);
+        if (pt && !pt.isPct) {
+          const gap = pt.value - doneOk;
+          if (gap > 0) gapText = `Thiếu ${gap} nhiệm vụ`;
+        }
       }
+
+      const meta = statusMeta[statusKey];
 
       return {
         indicator: ind,
@@ -232,16 +268,20 @@ export default function KpiIndicatorReportPage() {
         unreported,
         fail,
         doneOk,
-        statusLabel,
-        statusCls,
+        statusKey,
+        statusLabel: meta.label,
+        statusCls: meta.cls,
+        unitName,
+        gapText,
       };
     });
-  }, [activeIndicators, tasksInMonth, workByTask, evidenceByWork, groupById]);
+  }, [activeIndicators, tasksInScope, workByTask, evidenceByWork, groupById, unitById]);
 
   const filteredRows = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
     return indicatorRows.filter(row => {
       if (groupFilter && row.indicator.categoryId !== groupFilter) return false;
+      if (statusFilter && row.statusKey !== statusFilter) return false;
       if (!kw) return true;
       const taskHit = row.tasks.some(r => r.task.taskName.toLowerCase().includes(kw));
       return (
@@ -250,22 +290,27 @@ export default function KpiIndicatorReportPage() {
         taskHit
       );
     });
-  }, [indicatorRows, groupFilter, keyword]);
+  }, [indicatorRows, groupFilter, statusFilter, keyword]);
 
   const stats = useMemo(() => {
-    const withTasks = filteredRows.filter(r => r.tasks.length > 0);
+    const okCount = filteredRows.filter(r => r.statusKey === 'ok').length;
+    const failCount = filteredRows.filter(r => r.statusKey === 'fail' || r.statusKey === 'partial').length;
+    const noDataCount = filteredRows.filter(r => r.statusKey === 'no_data' || r.statusKey === 'updating').length;
     const taskTotal = filteredRows.reduce((s, r) => s + r.tasks.length, 0);
     const reachTotal = filteredRows.reduce((s, r) => s + r.doneOk, 0);
-    const completionRate = taskTotal > 0 ? Math.round((reachTotal / taskTotal) * 100) : 0;
-    return { total: filteredRows.length, withTasks: withTasks.length, reachTotal, taskTotal, completionRate };
+    const withData = okCount + failCount;
+    const completionRate = withData > 0 ? Math.round((okCount / withData) * 100) : 0;
+    const taskRate = taskTotal > 0 ? Math.round((reachTotal / taskTotal) * 100) : 0;
+    return { total: filteredRows.length, okCount, failCount, noDataCount, reachTotal, taskTotal, completionRate, taskRate };
   }, [filteredRows]);
 
   const exportCsv = () => {
-    const headers = ['Mã KPI', 'Chỉ tiêu', 'Nhóm lĩnh vực', 'Chu kỳ', 'Chỉ tiêu giao', 'Số nhiệm vụ', 'Đạt', 'Chưa đạt', 'Trạng thái'];
+    const headers = ['Mã KPI', 'Chỉ tiêu', 'Nhóm lĩnh vực', 'ĐVT', 'Chu kỳ', 'Chỉ tiêu giao', 'Số nhiệm vụ', 'Nhiệm vụ đạt', 'Nhiệm vụ chưa đạt', 'Trạng thái'];
     const rows = filteredRows.map(r => [
       r.indicator.code,
       r.indicator.name,
       r.groupName,
+      r.unitName || '—',
       r.indicator.cycle || '—',
       r.indicator.target || '—',
       r.tasks.length,
@@ -273,7 +318,7 @@ export default function KpiIndicatorReportPage() {
       r.fail,
       r.statusLabel,
     ]);
-    downloadCsv(`baocao_chitieu_kpi_${monthFilter.replace(/\//g, '-') || 'tat-ca'}.csv`, headers, rows);
+    downloadCsv(`baocao_chitieu_kpi_${yearFilter || 'nam-hoc'}.csv`, headers, rows);
   };
 
   const toggle = (code: string) => setOpen(o => ({ ...o, [code]: !o[code] }));
@@ -287,13 +332,21 @@ export default function KpiIndicatorReportPage() {
       </div>
 
       <div className="card p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
-            <label className="block text-sm font-medium mb-1">Tháng</label>
-            <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
+            <label className="block text-sm font-medium mb-1">Năm học</label>
+            <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
-              <option value="all">Tất cả tháng</option>
-              {months.map(m => <option key={m} value={m}>{m}</option>)}
+              <option value="">Tất cả năm học</option>
+              {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Trạng thái</label>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
+              <option value="">Tất cả trạng thái</option>
+              {(Object.keys(statusMeta) as IndicatorStatusKey[]).map(k => <option key={k} value={k}>{statusMeta[k].label}</option>)}
             </select>
           </div>
           <div>
@@ -312,17 +365,19 @@ export default function KpiIndicatorReportPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {[
-          { label: 'Chỉ tiêu KPI', value: stats.total, color: 'bg-primary' },
-          { label: 'Chỉ tiêu có nhiệm vụ', value: stats.withTasks, color: 'bg-accent-green' },
-          { label: 'Nhiệm vụ đạt', value: `${stats.reachTotal}/${stats.taskTotal}`, color: 'bg-accent-green' },
-          { label: 'Tỷ lệ đạt', value: `${stats.completionRate}%`, color: 'bg-accent-yellow' },
+          { label: 'Tổng chỉ tiêu KPI', value: stats.total, color: 'bg-primary', sub: `tỷ lệ đạt ${stats.completionRate}%` },
+          { label: 'Chỉ tiêu đạt', value: stats.okCount, color: 'bg-accent-green', sub: `/${stats.okCount + stats.failCount} chỉ tiêu có dữ liệu` },
+          { label: 'Chỉ tiêu chưa đạt', value: stats.failCount, color: 'bg-accent-red', sub: 'gồm cả đạt một phần' },
+          { label: 'Chỉ tiêu chưa có dữ liệu', value: stats.noDataCount, color: 'bg-accent-yellow', sub: 'chưa có nhiệm vụ/kết quả' },
+          { label: 'Nhiệm vụ đạt', value: `${stats.reachTotal}/${stats.taskTotal}`, color: 'bg-accent-green', sub: `${stats.taskRate}%` },
         ].map(x => (
           <div key={x.label} className="card p-4 flex items-center justify-between">
             <div>
               <p className="text-text-light text-xs">{x.label}</p>
               <p className="text-2xl font-heading font-bold text-primary mt-1">{x.value}</p>
+              {x.sub && <p className="text-[11px] text-text-light mt-0.5">{x.sub}</p>}
             </div>
             <div className={`p-3 rounded-lg ${x.color}`}><Target size={21} className="text-white" /></div>
           </div>
@@ -336,7 +391,7 @@ export default function KpiIndicatorReportPage() {
       </div>
 
       <div className="card">
-        <div className="card-header">Chỉ tiêu KPI theo kỳ{monthFilter && monthFilter !== 'all' ? ` — ${monthFilter}` : ''}</div>
+        <div className="card-header">Chỉ tiêu KPI{yearFilter ? ` — Năm học ${yearFilter}` : ''}</div>
         <div className="overflow-x-auto">
           <table className="table table-fixed min-w-[1100px]">
             <thead>
@@ -386,7 +441,7 @@ function IndicatorGroup({ row, opened, onToggle }: {
         <td className="text-sm">
           <p className="font-semibold text-text-dark leading-snug">{row.indicator.name}</p>
           <p className="text-xs text-text-light mt-0.5">
-            Chỉ tiêu giao: <b className="text-text-dark">{row.indicator.target || '—'}</b>
+            Chỉ tiêu giao: <b className="text-text-dark">{row.indicator.target || '—'}{row.unitName && row.unitName !== '%' && !(row.indicator.target || '').includes('%') ? ` ${row.unitName}` : ''}</b>
             {row.indicator.cycle ? ` · ${row.indicator.cycle}` : ''}
           </p>
         </td>
@@ -395,6 +450,7 @@ function IndicatorGroup({ row, opened, onToggle }: {
         <td className="text-sm">
           <span className="text-lg font-mono font-bold text-accent-green leading-none">{row.doneOk}</span>
           <span className="text-text-light">/{row.tasks.length} đạt</span>
+          {row.gapText && <p className="text-xs text-accent-red mt-0.5">{row.gapText}</p>}
         </td>
         <td><span className={`badge ${row.statusCls}`}>{row.statusLabel}</span></td>
         <td>
