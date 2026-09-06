@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Send, ClipboardCheck, AlertTriangle, CheckCircle, Save, RefreshCw, Paperclip, Trash2, UploadCloud } from 'lucide-react';
+import { Send, ClipboardCheck, AlertTriangle, CheckCircle, Save, RefreshCw, Paperclip, Trash2, UploadCloud, Plus, Layers } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { apiGet, apiPut, apiPost, apiDelete } from '@/lib/api';
 import { getProgress, progressColor, isOverdue } from '@/lib/workProgress';
 import { fileToBase64 } from '@/lib/fileToBase64';
 import Modal from '@/components/ui/Modal';
-import type { UnitWorkTask } from '@/types';
+import academicYearsData from '@/data/academic-years.json';
+import individualKpisData from '@/data/individual-kpis.json';
+import unitsData from '@/data/units.json';
+import type { UnitWorkTask, IndividualTemplateAssignment } from '@/types';
 
 interface SoftwareSource { id: string; name: string; description?: string; status?: string; }
 interface WorkEvidence {
@@ -28,15 +32,79 @@ const statusMeta: Record<UnitWorkTask['status'], { label: string; cls: string }>
 
 const statusOrder: Array<UnitWorkTask['status'] | 'all'> = ['all', 'assigned', 'in_progress', 'done'];
 
+interface AcademicYear { id: string; name: string; startDate: string; endDate: string; status: string; }
+interface UserBrief { id: string; fullName: string; employeeCode: string; unitId: string; positionId: string; status: string; }
+interface KpiTemplateBrief { id: string; name: string; targetLevel: string; status: string; }
+interface MyCriterion {
+  id: string;
+  code: string;
+  name: string;
+  target: number;
+  unit: string;
+  weight: number;
+}
+
+const indicatorMeta: Record<string, { name: string; target: number; unit: string }> = {};
+(individualKpisData as { kpis: { id: string; name: string; target: number; unit: string }[] }[]).forEach(p => {
+  (p.kpis || []).forEach(k => {
+    if (!indicatorMeta[k.id]) indicatorMeta[k.id] = { name: k.name, target: k.target, unit: k.unit };
+  });
+});
+
+const unitNames: Record<string, string> = {};
+(unitsData as { id: string; name: string }[]).forEach(u => { unitNames[u.id] = u.name; });
+
+const currentMonthKey = () => {
+  const d = new Date();
+  return `${d.getMonth() + 1}/${d.getFullYear()}`;
+};
+
+const lastDayOfMonth = (key: string) => {
+  const [mo, yr] = key.split('/').map(Number);
+  return new Date(yr, mo, 0).toISOString().split('T')[0];
+};
+
+const yearMonths = (startDate?: string) => {
+  if (!startDate) return [currentMonthKey()];
+  const [y, m] = startDate.split('-').map(Number);
+  const res: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const mm = ((m - 1 + i) % 12) + 1;
+    const yy = y + Math.floor((m - 1 + i) / 12);
+    res.push(`${mm}/${yy}`);
+  }
+  return res;
+};
+
 export default function MyWorkPlanPage() {
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id || 'u009';
+  const activeYear = (academicYearsData as AcademicYear[]).find(y => y.status === 'active');
+  const activeYearId = activeYear?.id || '';
+  const monthOptions = yearMonths(activeYear?.startDate);
+
   const [tasks, setTasks] = useState<UnitWorkTask[]>([]);
+  const [users, setUsers] = useState<UserBrief[]>([]);
+  const [templates, setTemplates] = useState<KpiTemplateBrief[]>([]);
+  const [assignments, setAssignments] = useState<IndividualTemplateAssignment[]>([]);
+  const [myItems, setMyItems] = useState<MyCriterion[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<UnitWorkTask['status'] | 'all'>('all');
+  const [ownOnly, setOwnOnly] = useState(true);
   const [reportJob, setReportJob] = useState<UnitWorkTask | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   const load = async () => {
-    const data = await apiGet<UnitWorkTask[]>('/api/unit-work-plans');
-    setTasks(data);
+    const [taskData, userData, tplData, asgData] = await Promise.all([
+      apiGet<UnitWorkTask[]>('/api/unit-work-plans'),
+      apiGet<UserBrief[]>('/api/users'),
+      apiGet<KpiTemplateBrief[]>('/api/kpi-templates'),
+      apiGet<IndividualTemplateAssignment[]>('/api/individual-template-assignments'),
+    ]);
+    setTasks(taskData);
+    setUsers(userData);
+    setTemplates(tplData);
+    setAssignments(asgData);
     setLoading(false);
   };
 
@@ -44,19 +112,56 @@ export default function MyWorkPlanPage() {
     load();
   }, []);
 
-  const total = tasks.length;
-  const doneCount = tasks.filter(t => t.status === 'done').length;
-  const inProgress = tasks.filter(t => t.status === 'in_progress').length;
-  const overdueCount = tasks.filter(isOverdue).length;
+  const currentUser = users.find(u => u.id === currentUserId);
+  const myAsg = assignments.find(
+    a => a.userId === currentUserId && a.academicYearId === activeYearId && a.status === 'active'
+  );
+  const myTemplate = templates.find(t => t.id === myAsg?.kpiTemplateId);
+
+  useEffect(() => {
+    if (!myAsg) {
+      setMyItems([]);
+      return;
+    }
+    let cancelled = false;
+    apiGet<{ id: string; templateId: string; indicatorId: string; weight: number }[]>(
+      `/api/kpi-template-items?templateId=${myAsg.kpiTemplateId}`
+    ).then(items => {
+      if (cancelled) return;
+      const resolved: MyCriterion[] = items
+        .filter(i => indicatorMeta[i.indicatorId])
+        .map(i => ({
+          id: i.id,
+          code: i.indicatorId,
+          name: indicatorMeta[i.indicatorId].name,
+          target: indicatorMeta[i.indicatorId].target,
+          unit: indicatorMeta[i.indicatorId].unit,
+          weight: i.weight,
+        }));
+      setMyItems(resolved);
+    }).catch(() => { if (!cancelled) setMyItems([]); });
+    return () => { cancelled = true; };
+  }, [myAsg]);
+
+  const baseTasks = useMemo(
+    () => (ownOnly ? tasks.filter(t => t.primaryUserId === currentUserId) : tasks),
+    [tasks, ownOnly, currentUserId],
+  );
+  const total = baseTasks.length;
+  const doneCount = baseTasks.filter(t => t.status === 'done').length;
+  const inProgress = baseTasks.filter(t => t.status === 'in_progress').length;
+  const overdueCount = baseTasks.filter(isOverdue).length;
 
   const filtered = useMemo(
-    () => (filter === 'all' ? tasks : tasks.filter(t => t.status === filter)),
-    [tasks, filter],
+    () => (filter === 'all' ? baseTasks : baseTasks.filter(t => t.status === filter)),
+    [baseTasks, filter],
   );
+
+  const ownCount = tasks.filter(t => t.primaryUserId === currentUserId).length;
 
   const filterTabs: Array<{ key: UnitWorkTask['status'] | 'all'; label: string }> = [
     { key: 'all', label: `Tất cả (${total})` },
-    { key: 'assigned', label: `Đã giao (${tasks.filter(t => t.status === 'assigned').length})` },
+    { key: 'assigned', label: `Đã giao (${baseTasks.filter(t => t.status === 'assigned').length})` },
     { key: 'in_progress', label: `Đang thực hiện (${inProgress})` },
     { key: 'done', label: `Hoàn thành (${doneCount})` },
   ];
@@ -77,6 +182,46 @@ export default function MyWorkPlanPage() {
         </div>
       </div>
 
+      <div className="card">
+        <div className="card-header flex items-center justify-between">
+          <span>Bộ KPI mẫu của tôi</span>
+          {myAsg && (
+            <button onClick={() => setShowAdd(true)} className="btn-primary text-xs flex items-center gap-1">
+              <Plus size={13} /> Thêm công việc
+            </button>
+          )}
+        </div>
+        <div className="p-4">
+          {myAsg ? (
+            <>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-3">
+                <span className="text-sm font-semibold text-text-dark">{myTemplate?.name || myAsg.kpiTemplateId}</span>
+                <span className="text-xs text-text-light">· Năm học {activeYear?.name}</span>
+                <span className="text-xs text-text-light">· Khi thêm công việc, hãy chọn tiêu chí thuộc bộ mẫu để phục vụ đánh giá năng suất lao động hàng tháng.</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {myItems.map(c => (
+                  <div key={c.id} className="rounded-lg border border-border bg-bg-cream px-3 py-2">
+                    <p className="text-sm font-medium text-text-dark">
+                      <span className="font-mono text-xs text-primary">{c.code}</span> — {c.name}
+                    </p>
+                    <p className="text-[11px] text-text-light mt-0.5">Trọng số {c.weight}% · Chỉ tiêu {c.target}{c.unit}</p>
+                  </div>
+                ))}
+                {myItems.length === 0 && (
+                  <p className="text-sm text-text-light col-span-full">Đang tải tiêu chí...</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-text-light">
+              <Layers size={16} className="shrink-0" />
+              Bạn chưa được gán Bộ KPI mẫu cho năm học {activeYear?.name}. Liên hệ quản trị viên để gán tại <span className="text-primary">Quản trị → Danh mục → Gán Bộ KPI mẫu cá nhân</span>.
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(x => { const Icon = x.icon; return (
           <div key={x.label} className="card p-4 flex items-center justify-between">
@@ -92,7 +237,23 @@ export default function MyWorkPlanPage() {
       <div className="card">
         <div className="card-header">Công việc của tôi</div>
 
-        <div className="p-4 flex flex-wrap gap-2">
+        <div className="p-4 pb-2 flex flex-wrap items-center gap-2">
+          <button onClick={() => setOwnOnly(true)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              ownOnly ? 'bg-primary text-white' : 'bg-bg-cream text-text-dark hover:bg-primary-light'
+            }`}>
+            Của tôi ({ownCount})
+          </button>
+          <button onClick={() => setOwnOnly(false)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              !ownOnly ? 'bg-primary text-white' : 'bg-bg-cream text-text-dark hover:bg-primary-light'
+            }`}>
+            Tất cả ({tasks.length})
+          </button>
+          <span className="text-xs text-text-light ml-1">Phạm vi hiển thị</span>
+        </div>
+
+        <div className="p-4 pt-2 flex flex-wrap gap-2">
           {filterTabs.map(t => (
             <button key={t.key} onClick={() => setFilter(t.key)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -172,6 +333,19 @@ export default function MyWorkPlanPage() {
 
       <ReportModal job={reportJob} isOpen={!!reportJob} onClose={() => setReportJob(null)}
         onSaved={() => { load(); setReportJob(null); }} />
+
+      <AddWorkModal
+        isOpen={showAdd}
+        onClose={() => setShowAdd(false)}
+        criteria={myItems}
+        templateName={myTemplate?.name || ''}
+        templateId={myAsg?.kpiTemplateId || ''}
+        currentUser={currentUser}
+        unitName={currentUser ? unitNames[currentUser.unitId] || '' : ''}
+        monthOptions={monthOptions}
+        defaultMonth={currentMonthKey()}
+        onSaved={() => { setShowAdd(false); load(); }}
+      />
     </div>
   );
 }
@@ -391,6 +565,145 @@ function ReportModal({ job, isOpen, onClose, onSaved }: {
           </div>
         </form>
       )}
+    </Modal>
+  );
+}
+
+function AddWorkModal({ isOpen, onClose, criteria, templateName, templateId, currentUser, unitName, monthOptions, defaultMonth, onSaved }: {
+  isOpen: boolean;
+  onClose: () => void;
+  criteria: MyCriterion[];
+  templateName: string;
+  templateId: string;
+  currentUser?: UserBrief;
+  unitName: string;
+  monthOptions: string[];
+  defaultMonth: string;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [criterionId, setCriterionId] = useState('');
+  const [month, setMonth] = useState(defaultMonth);
+  const [chiTieu, setChiTieu] = useState('');
+  const [dueDate, setDueDate] = useState(lastDayOfMonth(defaultMonth));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setTitle('');
+      setDescription('');
+      setCriterionId('');
+      setMonth(defaultMonth);
+      setChiTieu('');
+      setDueDate(lastDayOfMonth(defaultMonth));
+      setError('');
+      setSaving(false);
+    }
+  }, [isOpen, defaultMonth]);
+
+  const changeMonth = (m: string) => {
+    setMonth(m);
+    setDueDate(lastDayOfMonth(m));
+  };
+
+  const selectCriterion = (id: string) => {
+    setCriterionId(id);
+    const c = criteria.find(x => x.id === id);
+    if (c) setChiTieu(`${c.target}${c.unit}`);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) { setError('Không xác định được người dùng hiện tại.'); return; }
+    setSaving(true);
+    const crit = criteria.find(c => c.id === criterionId);
+    try {
+      await apiPost('/api/unit-work-plans', {
+        khctTaskId: `khct-self-${Date.now()}`,
+        title,
+        taskName: templateName ? `Bộ KPI mẫu: ${templateName}` : '',
+        note: description,
+        unitId: currentUser.unitId,
+        unitName: unitName || currentUser.unitId,
+        primaryUserId: currentUser.id,
+        primaryUserName: currentUser.fullName,
+        templateId: templateId || undefined,
+        templateItemId: crit?.id,
+        criterionCode: crit?.code,
+        month,
+        chiTieu,
+        dueDate,
+        status: 'assigned',
+      });
+      onSaved();
+    } catch {
+      setError('Thêm công việc thất bại. Kiểm tra lại thông tin.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Thêm công việc mới">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-text-dark mb-1">Tên công việc *</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} required
+            placeholder="VD: Xử lý hồ sơ học vụ tháng 9/2026"
+            className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-text-dark mb-1">Tiêu chí thuộc Bộ KPI mẫu</label>
+          <select value={criterionId} onChange={e => selectCriterion(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
+            <option value="">-- Chưa gắn tiêu chí --</option>
+            {criteria.map(c => (
+              <option key={c.id} value={c.id}>{c.code} — {c.name} (trọng số {c.weight}%)</option>
+            ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-text-dark mb-1">Tháng thực hiện *</label>
+            <select value={month} onChange={e => changeMonth(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary">
+              {monthOptions.map(m => <option key={m} value={m}>Tháng {m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-dark mb-1">Hạn hoàn thành</label>
+            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-text-dark mb-1">Chỉ tiêu</label>
+          <input value={chiTieu} onChange={e => setChiTieu(e.target.value)}
+            placeholder="VD: 95% | 100 hồ sơ"
+            className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-text-dark mb-1">Mô tả / ghi chú</label>
+          <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+            className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary resize-y"
+            placeholder="Mô tả nội dung công việc, phạm vi thực hiện (nếu có)" />
+        </div>
+        {currentUser && (
+          <p className="text-xs text-text-light">
+            Người phụ trách: <span className="font-medium text-text-dark">{currentUser.fullName}</span>
+            {unitName ? ` · ${unitName}` : ''}
+          </p>
+        )}
+        {error && <p className="text-xs text-accent-red">{error}</p>}
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <button type="button" onClick={onClose} className="btn-secondary">Hủy</button>
+          <button type="submit" disabled={saving} className="btn-primary flex items-center gap-1">
+            <Save size={14}/> {saving ? 'Đang lưu...' : 'Thêm công việc'}
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 }
