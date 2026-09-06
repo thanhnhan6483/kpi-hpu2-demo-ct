@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import {
   BarChart2,
@@ -89,7 +89,8 @@ function monthOrder(month: string): number {
 }
 
 export default function UnitDashboardPage() {
-  const { data: session, status: authStatus } = useSession();
+  const { data: session } = useSession();
+  const manualUnit = useRef(false);
 
   const [orgUnits, setOrgUnits] = useState<OrgUnit[]>([]);
   const [tasks, setTasks] = useState<KHCTTask[]>([]);
@@ -102,48 +103,55 @@ export default function UnitDashboardPage() {
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
-    const [u, t, j, k, r, ev] = await Promise.all([
-      apiGet<OrgUnit[]>('/api/units'),
-      apiGet<KHCTTask[]>('/api/khct'),
-      apiGet<UnitWorkTask[]>('/api/unit-work-plans'),
-      apiGet<UnitKPICatalog[]>('/api/unit-kpi-catalog'),
-      apiGet<UnitWorkReport[]>('/api/unit-work-reports'),
-      apiGet<WorkEvidence[]>('/api/evidences'),
-    ]);
-    setOrgUnits(u);
-    setTasks(t);
-    setJobs(j);
-    setUnitKpis(k);
-    setReports(r);
-    setEvidences(ev);
+    try {
+      const [u, t, j, k, r, ev] = await Promise.all([
+        apiGet<OrgUnit[]>('/api/units'),
+        apiGet<KHCTTask[]>('/api/khct'),
+        apiGet<UnitWorkTask[]>('/api/unit-work-plans'),
+        apiGet<UnitKPICatalog[]>('/api/unit-kpi-catalog'),
+        apiGet<UnitWorkReport[]>('/api/unit-work-reports'),
+        apiGet<WorkEvidence[]>('/api/evidences'),
+      ]);
+      setOrgUnits(u);
+      setTasks(t);
+      setJobs(j);
+      setUnitKpis(k);
+      setReports(r);
+      setEvidences(ev);
 
-    const candidates = u.filter(x => x.parentId !== null);
-    let defaultId = '';
-    if (session?.user?.unitId && candidates.some(c => c.id === session.user.unitId)) {
-      defaultId = session.user.unitId;
-    }
-    if (!defaultId) {
-      const countByName: Record<string, number> = {};
-      t.forEach(x => {
-        if (x.responsibleUnit) countByName[x.responsibleUnit] = (countByName[x.responsibleUnit] || 0) + 1;
-      });
-      const best = candidates
-        .map(c => ({ c, n: countByName[c.name] || 0 }))
-        .sort((a, b) => b.n - a.n)[0];
-      defaultId = best?.c.id || candidates[0]?.id || '';
-    }
-    setUnitId(defaultId);
+      if (!manualUnit.current) {
+        const candidates = u.filter(x => x.parentId !== null);
+        let defaultId = '';
+        if (session?.user?.unitId && candidates.some(c => c.id === session.user.unitId)) {
+          defaultId = session.user.unitId;
+        }
+        if (!defaultId) {
+          const countByName: Record<string, number> = {};
+          t.forEach(x => {
+            if (x.responsibleUnit) countByName[x.responsibleUnit] = (countByName[x.responsibleUnit] || 0) + 1;
+          });
+          const best = candidates
+            .map(c => ({ c, n: countByName[c.name] || 0 }))
+            .sort((a, b) => b.n - a.n)[0];
+          defaultId = best?.c.id || candidates[0]?.id || '';
+        }
+        setUnitId(defaultId);
+      }
 
-    const years = Array.from(
-      new Set(t.map(x => academicYearOfMonth(x.month)).filter(Boolean) as string[]),
-    ).sort().reverse();
-    setYear(years[0] || '');
-    setLoaded(true);
+      const years = Array.from(
+        new Set(t.map(x => academicYearOfMonth(x.month)).filter(Boolean) as string[]),
+      ).sort().reverse();
+      setYear(years[0] || '');
+    } catch (err) {
+      console.error('Không tải được dữ liệu dashboard đơn vị:', err);
+    } finally {
+      setLoaded(true);
+    }
   }, [session]);
 
   useEffect(() => {
-    if (authStatus === 'authenticated') load();
-  }, [authStatus, load]);
+    load();
+  }, [load]);
 
   const activeUnit = useMemo(
     () => orgUnits.find(u => u.id === unitId) || null,
@@ -322,7 +330,7 @@ export default function UnitDashboardPage() {
     downloadCsv(`bao-cao-don-vi_${safeUnit}_${year || 'tat-ca'}.csv`, headers, rows);
   };
 
-  if (authStatus === 'loading' || !loaded) {
+  if (!loaded) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-heading font-bold text-text-dark">Dashboard đơn vị</h1>
@@ -343,7 +351,10 @@ export default function UnitDashboardPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <select
             value={unitId}
-            onChange={e => setUnitId(e.target.value)}
+            onChange={e => {
+              manualUnit.current = true;
+              setUnitId(e.target.value);
+            }}
             className="px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary"
           >
             {unitOptions.map(u => (
