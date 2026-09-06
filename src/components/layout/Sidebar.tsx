@@ -11,6 +11,7 @@ import {
   ChevronRight,
   LifeBuoy,
   ClipboardCheck,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -30,6 +31,13 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { href: '/', label: 'Trang chủ', icon: Home },
+
+  {
+    href: '/kpi/unit-dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    children: [{ href: '/kpi/unit-dashboard', label: 'Dashboard đơn vị' }],
+  },
 
   {
     href: '/target',
