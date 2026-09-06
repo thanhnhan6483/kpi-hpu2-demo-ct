@@ -121,5 +121,12 @@ export const PRODUCTIVITY_STATUS_META: Record<string, { label: string; cls: stri
   draft: { label: 'Nháp', cls: 'badge-info' },
   self_reviewed: { label: 'Đã tự đánh giá', cls: 'badge-warning' },
   manager_reviewed: { label: 'Đã kiểm tra', cls: 'badge-info' },
+  council_reviewed: { label: 'Đã thẩm định (Hội đồng)', cls: 'badge-info' },
   locked: { label: 'Đã chốt', cls: 'badge-success' },
 };
+
+export const finalScoreOf = (r: { councilScore?: number; managerScore?: number; totalScore: number }) =>
+  r.councilScore ?? r.managerScore ?? r.totalScore;
+
+export const finalGradeOf = (r: { councilGrade?: 'A' | 'B' | 'C' | ''; managerGrade?: 'A' | 'B' | 'C' | ''; grade: ProductivityGrade }): ProductivityGrade =>
+  r.councilGrade || r.managerGrade || r.grade;

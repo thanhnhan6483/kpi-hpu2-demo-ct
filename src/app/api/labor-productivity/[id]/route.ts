@@ -18,7 +18,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (index === -1) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const allowed = [
     'criterionRows', 'totalScore', 'grade', 'status',
-    'selfNote', 'managerNote', 'managerGrade',
+    'selfNote', 'managerNote', 'managerGrade', 'managerScore',
+    'councilNote', 'councilGrade', 'councilScore', 'councilReviewedAt', 'councilReviewedBy',
     'submittedAt', 'reviewedAt', 'lockedAt',
   ];
   const patch: Partial<LaborProductivity> = {};
