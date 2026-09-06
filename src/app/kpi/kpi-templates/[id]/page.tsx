@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Send, CheckCircle, Lock, Unlock, Play, ArrowLeft, S
 import Modal from '@/components/ui/Modal';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import type { SchoolKPICatalog, UnitKPICatalog, IndividualKPICatalog, KPITemplateItem } from '@/types';
+import { indicatorMeta } from '@/lib/laborProductivity';
 
 interface KPITemplate {
   id: string;
@@ -159,15 +160,19 @@ export default function KPITemplateDetailPage() {
   const getIndicatorName = (indicatorId: string) => {
     const from = (arr: any[]) => arr.find((x: any) => x.id === indicatorId);
     const found = from(schoolCatalog) || from(unitCatalog) || from(indCatalog);
-    return found ? `${found.code} — ${found.name}` : indicatorId;
+    if (found) return `${found.code} — ${found.name}`;
+    const meta = indicatorMeta[indicatorId];
+    return meta ? `${indicatorId} — ${meta.name}` : indicatorId;
   };
 
   const getIndicatorUnit = (indicatorId: string) => {
     const from = (arr: any[]) => arr.find((x: any) => x.id === indicatorId);
     const found = from(schoolCatalog) || from(unitCatalog) || from(indCatalog);
-    if (!found) return '';
-    const unit = measurementUnits.find(m => m.id === found.unitId);
-    return unit?.name || '';
+    if (found) {
+      const unit = measurementUnits.find(m => m.id === found.unitId);
+      return unit?.name || '';
+    }
+    return indicatorMeta[indicatorId]?.unit || '';
   };
 
   const handleAddIndicator = async () => {
