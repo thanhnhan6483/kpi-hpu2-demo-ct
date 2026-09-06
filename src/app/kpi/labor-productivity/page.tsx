@@ -227,6 +227,14 @@ export default function LaborProductivityPage() {
     setMessage(lock ? `Đã chốt kết quả tháng ${month}.` : `Đã cập nhật nhận xét của Hội đồng cho tháng ${month}.`);
   };
 
+  const handleSaveSelfResult = async (record: LaborProductivity | null, score: number, grade: ProductivityGrade) => {
+    if (!record || record.status === 'locked') return;
+    const updated = await apiPut<LaborProductivity>(`/api/labor-productivity/${record.id}`, { totalScore: score, grade });
+    setRecords(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+    setDetail(prev => (prev && prev.record?.id === updated.id ? { ...prev, record: updated, totalScore: updated.totalScore, grade: updated.grade } : prev));
+    setMessage(`Đã cập nhật kết quả tự đánh giá cho ${record.userName}.`);
+  };
+
   const openDetailFor = (user: UserBrief, m: string) => {
     const rec = recordFor(user.id, m);
     const computed = computeUserFor(user, m);
@@ -404,6 +412,8 @@ export default function LaborProductivityPage() {
           state={detail}
           month={detail.month}
           onClose={() => setDetail(null)}
+          canEditSelfResult={currentUserId === 'u001' || canReview}
+          onSaveSelfResult={(score, grade) => handleSaveSelfResult(detail.record, score, grade)}
         />
       )}
 
@@ -423,8 +433,32 @@ export default function LaborProductivityPage() {
   );
 }
 
-function DetailModal({ state, month, onClose }: { state: DetailState; month: string; onClose: () => void }) {
+function DetailModal({ state, month, onClose, canEditSelfResult, onSaveSelfResult }: {
+  state: DetailState;
+  month: string;
+  onClose: () => void;
+  canEditSelfResult: boolean;
+  onSaveSelfResult: (score: number, grade: ProductivityGrade) => void;
+}) {
   const { user, record, rows, tasks, totalScore, grade, templateName } = state;
+  const [scoreText, setScoreText] = useState(String(record?.totalScore ?? totalScore));
+  const [selGrade, setSelGrade] = useState<ProductivityGrade>(record?.grade ?? grade);
+  const [saving, setSaving] = useState(false);
+  const canEdit = canEditSelfResult && !!record && record.status !== 'locked';
+
+  const saveSelfResult = async () => {
+    if (!record) return;
+    const n = Number(scoreText);
+    if (scoreText === '' || isNaN(n)) return;
+    const score = Math.min(100, Math.max(0, Math.round(n * 10) / 10));
+    setSaving(true);
+    try {
+      await onSaveSelfResult(score, selGrade);
+      setScoreText(String(score));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const TASK_STATUS: Record<UnitWorkTask['status'], { label: string; cls: string }> = {
     assigned: { label: 'Chưa bắt đầu', cls: 'badge-info' },
@@ -556,6 +590,31 @@ function DetailModal({ state, month, onClose }: { state: DetailState; month: str
                 {typeof record.councilScore === 'number' && <span>{record.councilScore} điểm</span>} {record.councilGrade && `— ${GRADE_META[record.councilGrade as ProductivityGrade]?.label || record.councilGrade}`}
               </p>
             )}
+          </div>
+        )}
+        {canEdit && (
+          <div className="border border-border rounded-lg p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-text-dark">Cập nhật kết quả tự đánh giá</h3>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs text-text-light mb-1">Điểm (0–100)</label>
+                <input type="number" min={0} max={100} step={0.1} value={scoreText}
+                  onChange={e => setScoreText(e.target.value)}
+                  className="w-28 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-xs text-text-light mb-1">Xếp loại</label>
+                <select value={selGrade} onChange={e => setSelGrade(e.target.value as ProductivityGrade)}
+                  className="px-3 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:border-primary">
+                  {(Object.keys(GRADE_META) as ProductivityGrade[]).map(g => (
+                    <option key={g} value={g}>{GRADE_META[g].label}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" onClick={saveSelfResult} disabled={saving} className="btn-primary text-sm flex items-center gap-1">
+                <Send size={14}/> {saving ? 'Đang lưu...' : 'Lưu kết quả'}
+              </button>
+            </div>
           </div>
         )}
         <div className="flex justify-end pt-4 border-t">
