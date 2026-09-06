@@ -13,9 +13,15 @@
     "status": "active",
     "chiTieu": "100%",
     "softwareId": "sw001",
-    "taskResult": "1/2 công việc hoàn thành",
+    "taskResult": "43%",
     "taskStatus": "in_progress",
-    "taskReviewNote": "Đạt tiến độ"
+    "taskReviewNote": "Đạt tiến độ",
+    "resultSource": "manual",
+    "syncInfo": {
+      "sourceId": "sw001",
+      "sourceName": "Phần mềm Quản trị đại học",
+      "syncedAt": "2026-09-05T14:35:12.936Z"
+    }
   },
   {
     "id": "khct_1788439859427_8135",

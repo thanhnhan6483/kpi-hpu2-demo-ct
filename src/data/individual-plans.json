@@ -1,1 +1,498 @@
-[]
+[
+  {
+    "id": "ipl_r7t033n5ljmjvlz1f1xk",
+    "userId": "u003",
+    "cycleId": "cycle_hpu2_2026_2027",
+    "positionId": "p003",
+    "positionName": "Chuyên viên phòng ban",
+    "status": "in_progress",
+    "createdAt": "2026-08-20T03:00:00.000Z",
+    "updatedAt": "2026-09-01T02:00:00.000Z",
+    "items": [
+      {
+        "kpiId": "CV-01",
+        "kpiName": "Hồ sơ nghiệp vụ xử lý đúng hạn",
+        "target": 95,
+        "unit": "%",
+        "weight": 30,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-02",
+        "kpiName": "Chất lượng hồ sơ tham mưu",
+        "target": 95,
+        "unit": "%",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-03",
+        "kpiName": "Dữ liệu nghiệp vụ cập nhật đầy đủ",
+        "target": 98,
+        "unit": "%",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-04",
+        "kpiName": "Mức hài lòng người dùng",
+        "target": 4,
+        "unit": "điểm",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-05",
+        "kpiName": "Sáng kiến cải tiến quy trình",
+        "target": 1,
+        "unit": "sáng kiến",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-06",
+        "kpiName": "Tuân thủ báo cáo định kỳ",
+        "target": 100,
+        "unit": "%",
+        "weight": 10,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "id": "ipl_r1ih2jqu6lzqmysqhgda",
+    "userId": "u004",
+    "cycleId": "cycle_hpu2_2026_2027",
+    "positionId": "p003",
+    "positionName": "Chuyên viên phòng ban",
+    "status": "in_progress",
+    "createdAt": "2026-08-20T03:00:00.000Z",
+    "updatedAt": "2026-09-01T02:00:00.000Z",
+    "items": [
+      {
+        "kpiId": "CV-01",
+        "kpiName": "Hồ sơ nghiệp vụ xử lý đúng hạn",
+        "target": 95,
+        "unit": "%",
+        "weight": 30,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-02",
+        "kpiName": "Chất lượng hồ sơ tham mưu",
+        "target": 95,
+        "unit": "%",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-03",
+        "kpiName": "Dữ liệu nghiệp vụ cập nhật đầy đủ",
+        "target": 98,
+        "unit": "%",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-04",
+        "kpiName": "Mức hài lòng người dùng",
+        "target": 4,
+        "unit": "điểm",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-05",
+        "kpiName": "Sáng kiến cải tiến quy trình",
+        "target": 1,
+        "unit": "sáng kiến",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-06",
+        "kpiName": "Tuân thủ báo cáo định kỳ",
+        "target": 100,
+        "unit": "%",
+        "weight": 10,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "id": "ipl_j35nddadn8y57cxrpcwp",
+    "userId": "u005",
+    "cycleId": "cycle_hpu2_2026_2027",
+    "positionId": "p004",
+    "positionName": "Giảng viên",
+    "status": "in_progress",
+    "createdAt": "2026-08-20T03:00:00.000Z",
+    "updatedAt": "2026-09-01T02:00:00.000Z",
+    "items": [
+      {
+        "kpiId": "GV-01",
+        "kpiName": "Hoàn thành khối lượng giảng dạy",
+        "target": 100,
+        "unit": "%",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-02",
+        "kpiName": "Chất lượng giảng dạy theo phản hồi người học",
+        "target": 80,
+        "unit": "%",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-03",
+        "kpiName": "Cập nhật đề cương, học liệu và LMS đúng hạn",
+        "target": 95,
+        "unit": "%",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-04",
+        "kpiName": "Công bố khoa học cá nhân",
+        "target": 2,
+        "unit": "bài",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-05",
+        "kpiName": "Tham gia đề tài/NCKH SV/hướng dẫn luận văn",
+        "target": 3,
+        "unit": "đề tài",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-06",
+        "kpiName": "Tham gia phát triển CTĐT/ĐBCL",
+        "target": 2,
+        "unit": "nhiệm vụ",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-07",
+        "kpiName": "Bồi dưỡng chuyên môn và chuyển đổi số giảng dạy",
+        "target": 1,
+        "unit": "khóa",
+        "weight": 10,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "id": "ipl_uvpoj3xi0154vlrfvtdk",
+    "userId": "u007",
+    "cycleId": "cycle_hpu2_2026_2027",
+    "positionId": "p003",
+    "positionName": "Chuyên viên phòng ban",
+    "status": "in_progress",
+    "createdAt": "2026-08-20T03:00:00.000Z",
+    "updatedAt": "2026-09-01T02:00:00.000Z",
+    "items": [
+      {
+        "kpiId": "CV-01",
+        "kpiName": "Hồ sơ nghiệp vụ xử lý đúng hạn",
+        "target": 95,
+        "unit": "%",
+        "weight": 30,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-02",
+        "kpiName": "Chất lượng hồ sơ tham mưu",
+        "target": 95,
+        "unit": "%",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-03",
+        "kpiName": "Dữ liệu nghiệp vụ cập nhật đầy đủ",
+        "target": 98,
+        "unit": "%",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-04",
+        "kpiName": "Mức hài lòng người dùng",
+        "target": 4,
+        "unit": "điểm",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-05",
+        "kpiName": "Sáng kiến cải tiến quy trình",
+        "target": 1,
+        "unit": "sáng kiến",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-06",
+        "kpiName": "Tuân thủ báo cáo định kỳ",
+        "target": 100,
+        "unit": "%",
+        "weight": 10,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "id": "ipl_ifepsvihjsd82yq0fs7q",
+    "userId": "u008",
+    "cycleId": "cycle_hpu2_2026_2027",
+    "positionId": "p003",
+    "positionName": "Chuyên viên phòng ban",
+    "status": "in_progress",
+    "createdAt": "2026-08-20T03:00:00.000Z",
+    "updatedAt": "2026-09-01T02:00:00.000Z",
+    "items": [
+      {
+        "kpiId": "CV-01",
+        "kpiName": "Hồ sơ nghiệp vụ xử lý đúng hạn",
+        "target": 95,
+        "unit": "%",
+        "weight": 30,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-02",
+        "kpiName": "Chất lượng hồ sơ tham mưu",
+        "target": 95,
+        "unit": "%",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-03",
+        "kpiName": "Dữ liệu nghiệp vụ cập nhật đầy đủ",
+        "target": 98,
+        "unit": "%",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-04",
+        "kpiName": "Mức hài lòng người dùng",
+        "target": 4,
+        "unit": "điểm",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-05",
+        "kpiName": "Sáng kiến cải tiến quy trình",
+        "target": 1,
+        "unit": "sáng kiến",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-06",
+        "kpiName": "Tuân thủ báo cáo định kỳ",
+        "target": 100,
+        "unit": "%",
+        "weight": 10,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "id": "ipl_u8nyf42vfoxa99h5neb4",
+    "userId": "u009",
+    "cycleId": "cycle_hpu2_2026_2027",
+    "positionId": "p003",
+    "positionName": "Chuyên viên phòng ban",
+    "status": "in_progress",
+    "createdAt": "2026-08-20T03:00:00.000Z",
+    "updatedAt": "2026-09-01T02:00:00.000Z",
+    "items": [
+      {
+        "kpiId": "CV-01",
+        "kpiName": "Hồ sơ nghiệp vụ xử lý đúng hạn",
+        "target": 95,
+        "unit": "%",
+        "weight": 30,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-02",
+        "kpiName": "Chất lượng hồ sơ tham mưu",
+        "target": 95,
+        "unit": "%",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-03",
+        "kpiName": "Dữ liệu nghiệp vụ cập nhật đầy đủ",
+        "target": 98,
+        "unit": "%",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-04",
+        "kpiName": "Mức hài lòng người dùng",
+        "target": 4,
+        "unit": "điểm",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-05",
+        "kpiName": "Sáng kiến cải tiến quy trình",
+        "target": 1,
+        "unit": "sáng kiến",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-06",
+        "kpiName": "Tuân thủ báo cáo định kỳ",
+        "target": 100,
+        "unit": "%",
+        "weight": 10,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "id": "ipl_n8s7jk1tpip695mxl14f",
+    "userId": "u010",
+    "cycleId": "cycle_hpu2_2026_2027",
+    "positionId": "p004",
+    "positionName": "Giảng viên",
+    "status": "in_progress",
+    "createdAt": "2026-08-20T03:00:00.000Z",
+    "updatedAt": "2026-09-01T02:00:00.000Z",
+    "items": [
+      {
+        "kpiId": "GV-01",
+        "kpiName": "Hoàn thành khối lượng giảng dạy",
+        "target": 100,
+        "unit": "%",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-02",
+        "kpiName": "Chất lượng giảng dạy theo phản hồi người học",
+        "target": 80,
+        "unit": "%",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-03",
+        "kpiName": "Cập nhật đề cương, học liệu và LMS đúng hạn",
+        "target": 95,
+        "unit": "%",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-04",
+        "kpiName": "Công bố khoa học cá nhân",
+        "target": 2,
+        "unit": "bài",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-05",
+        "kpiName": "Tham gia đề tài/NCKH SV/hướng dẫn luận văn",
+        "target": 3,
+        "unit": "đề tài",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-06",
+        "kpiName": "Tham gia phát triển CTĐT/ĐBCL",
+        "target": 2,
+        "unit": "nhiệm vụ",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "GV-07",
+        "kpiName": "Bồi dưỡng chuyên môn và chuyển đổi số giảng dạy",
+        "target": 1,
+        "unit": "khóa",
+        "weight": 10,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "id": "ipl_791uvjc62mp9t91x6cdk",
+    "userId": "u011",
+    "cycleId": "cycle_hpu2_2026_2027",
+    "positionId": "p003",
+    "positionName": "Chuyên viên phòng ban",
+    "status": "in_progress",
+    "createdAt": "2026-08-20T03:00:00.000Z",
+    "updatedAt": "2026-09-01T02:00:00.000Z",
+    "items": [
+      {
+        "kpiId": "CV-01",
+        "kpiName": "Hồ sơ nghiệp vụ xử lý đúng hạn",
+        "target": 95,
+        "unit": "%",
+        "weight": 30,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-02",
+        "kpiName": "Chất lượng hồ sơ tham mưu",
+        "target": 95,
+        "unit": "%",
+        "weight": 20,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-03",
+        "kpiName": "Dữ liệu nghiệp vụ cập nhật đầy đủ",
+        "target": 98,
+        "unit": "%",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-04",
+        "kpiName": "Mức hài lòng người dùng",
+        "target": 4,
+        "unit": "điểm",
+        "weight": 15,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-05",
+        "kpiName": "Sáng kiến cải tiến quy trình",
+        "target": 1,
+        "unit": "sáng kiến",
+        "weight": 10,
+        "note": ""
+      },
+      {
+        "kpiId": "CV-06",
+        "kpiName": "Tuân thủ báo cáo định kỳ",
+        "target": 100,
+        "unit": "%",
+        "weight": 10,
+        "note": ""
+      }
+    ]
+  }
+]

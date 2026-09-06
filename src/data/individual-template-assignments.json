@@ -70,5 +70,23 @@
     "status": "active",
     "assignedAt": "2026-09-01T00:00:00.000Z",
     "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "itamtpnlqeywyljtgkrmqo",
+    "userId": "u001",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-06T10:13:17.434Z",
+    "updatedAt": "2026-09-06T10:13:17.434Z"
+  },
+  {
+    "id": "itamtpnlqhdgd2vcqnut8v",
+    "userId": "u006",
+    "academicYearId": "ay_hpu2_2026_2027",
+    "kpiTemplateId": "tpl007",
+    "status": "active",
+    "assignedAt": "2026-09-06T10:13:17.521Z",
+    "updatedAt": "2026-09-06T10:13:17.521Z"
   }
 ]
