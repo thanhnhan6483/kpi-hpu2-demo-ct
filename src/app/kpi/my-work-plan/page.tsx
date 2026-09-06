@@ -8,8 +8,8 @@ import { getProgress, progressColor, isOverdue } from '@/lib/workProgress';
 import { fileToBase64 } from '@/lib/fileToBase64';
 import Modal from '@/components/ui/Modal';
 import academicYearsData from '@/data/academic-years.json';
-import individualKpisData from '@/data/individual-kpis.json';
 import unitsData from '@/data/units.json';
+import { indicatorMeta, currentMonthKey, yearMonths } from '@/lib/laborProductivity';
 import type { UnitWorkTask, IndividualTemplateAssignment } from '@/types';
 
 interface SoftwareSource { id: string; name: string; description?: string; status?: string; }
@@ -44,36 +44,12 @@ interface MyCriterion {
   weight: number;
 }
 
-const indicatorMeta: Record<string, { name: string; target: number; unit: string }> = {};
-(individualKpisData as { kpis: { id: string; name: string; target: number; unit: string }[] }[]).forEach(p => {
-  (p.kpis || []).forEach(k => {
-    if (!indicatorMeta[k.id]) indicatorMeta[k.id] = { name: k.name, target: k.target, unit: k.unit };
-  });
-});
-
 const unitNames: Record<string, string> = {};
 (unitsData as { id: string; name: string }[]).forEach(u => { unitNames[u.id] = u.name; });
-
-const currentMonthKey = () => {
-  const d = new Date();
-  return `${d.getMonth() + 1}/${d.getFullYear()}`;
-};
 
 const lastDayOfMonth = (key: string) => {
   const [mo, yr] = key.split('/').map(Number);
   return new Date(yr, mo, 0).toISOString().split('T')[0];
-};
-
-const yearMonths = (startDate?: string) => {
-  if (!startDate) return [currentMonthKey()];
-  const [y, m] = startDate.split('-').map(Number);
-  const res: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const mm = ((m - 1 + i) % 12) + 1;
-    const yy = y + Math.floor((m - 1 + i) / 12);
-    res.push(`${mm}/${yy}`);
-  }
-  return res;
 };
 
 export default function MyWorkPlanPage() {
