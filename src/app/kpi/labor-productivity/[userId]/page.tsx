@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, ChevronDown, RefreshCw, Send } from 'lucide-react';
+import { ArrowLeft, CheckCheck, ChevronDown, Lock, RefreshCw, Send } from 'lucide-react';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
 import academicYearsData from '@/data/academic-years.json';
 import {
@@ -18,6 +18,8 @@ import {
   currentMonthKey,
   effectiveProgress,
   PRODUCTIVITY_STATUS_META,
+  finalScoreOf,
+  finalGradeOf,
 } from '@/lib/laborProductivity';
 import { positionName } from '@/lib/jobPositionTemplate';
 import type { SyncMonthResult } from '@/lib/khctSync';
@@ -59,6 +61,9 @@ export default function LaborProductivityDetailPage() {
   const [saving, setSaving] = useState(false);
   const [scoreText, setScoreText] = useState('');
   const [selGrade, setSelGrade] = useState<ProductivityGrade>('C');
+  const [noteText, setNoteText] = useState('');
+  const [revScore, setRevScore] = useState('');
+  const [revGrade, setRevGrade] = useState('');
   const [openItems, setOpenItems] = useState<Set<string>>(new Set());
 
   const toggleItem = (key: string) => {
@@ -112,6 +117,9 @@ export default function LaborProductivityDetailPage() {
   const user = users.find(x => x.id === userId);
   const unit = units.find(x => x.id === user?.unitId);
   const canManage = !!user && (currentUserId === 'u001' || (!!unit && unit.managerId === currentUserId));
+  const canCouncil = currentUserId === 'u001' || currentUserId === 'u002';
+  const canSaveSelf = !!user && (user.id === currentUserId || canManage);
+  const role = (searchParams.get('role') || 'self') as 'self' | 'manager' | 'council';
 
   const asgByUser: Record<string, IndividualTemplateAssignment> = {};
   asgs.forEach(a => { asgByUser[a.userId] = a; });
@@ -162,6 +170,25 @@ export default function LaborProductivityDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rec?.id, month]);
 
+  useEffect(() => {
+    if (!rec) {
+      setNoteText('');
+      setRevScore('');
+      setRevGrade('');
+      return;
+    }
+    if (role === 'manager') {
+      setNoteText(rec.managerNote || '');
+      setRevScore(rec.managerScore != null ? String(rec.managerScore) : '');
+      setRevGrade(rec.managerGrade || '');
+    } else if (role === 'council') {
+      setNoteText(rec.councilNote || '');
+      setRevScore(rec.councilScore != null ? String(rec.councilScore) : '');
+      setRevGrade(rec.councilGrade || '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rec?.id, month, role]);
+
   const handleSync = async () => {
     if (!user) return;
     setSyncing(true);
@@ -175,17 +202,91 @@ export default function LaborProductivityDetailPage() {
     }
   };
 
+  const parseScore = (value: string): number | undefined => {
+    if (value === '') return undefined;
+    const n = Number(value);
+    if (isNaN(n)) return undefined;
+    return Math.min(100, Math.max(0, Math.round(n * 10) / 10));
+  };
+
   const handleSaveSelf = async () => {
-    if (!rec || rec.status === 'locked' || !user) return;
+    if (!user) return;
+    if (rec && rec.status === 'locked') return;
     const n = Number(scoreText);
     if (scoreText === '' || isNaN(n)) return;
     const score = Math.min(100, Math.max(0, Math.round(n * 10) / 10));
     setSaving(true);
     try {
-      const updated = await apiPut<LaborProductivity>(`/api/labor-productivity/${rec.id}`, { totalScore: score, grade: selGrade });
-      setRecords(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+      if (rec) {
+        const updated = await apiPut<LaborProductivity>(`/api/labor-productivity/${rec.id}`, { totalScore: score, grade: selGrade });
+        setRecords(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+      } else if (asg) {
+        const created = await apiPost<LaborProductivity>('/api/labor-productivity', {
+          userId: user.id,
+          userName: user.fullName,
+          unitId: user.unitId,
+          unitName: unit?.name || user.unitId,
+          academicYearId: yearId,
+          month,
+          templateId: asg.kpiTemplateId,
+          templateName,
+          criterionRows: computed.rows,
+          totalScore: score,
+          grade: selGrade,
+        });
+        setRecords(prev => prev.some(r => r.userId === created.userId && r.month === created.month)
+          ? prev.map(r => (r.userId !== created.userId || r.month !== created.month ? r : created))
+          : [...prev, created]);
+      }
       setScoreText(String(score));
-      setMessage(`Đã cập nhật kết quả tự đánh giá tháng ${month} cho ${user.fullName}.`);
+      setMessage(`Đã lưu kết quả tự đánh giá tháng ${month} cho ${user.fullName}.`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const gradeOf = (r: LaborProductivity, score: number | undefined, base: string) =>
+    base || (typeof score === 'number' ? gradeForScore(score) : finalGradeOf(r));
+
+  const handleManagerSave = async () => {
+    if (!rec || rec.status === 'locked' || !user) return;
+    const now = new Date().toISOString();
+    const score = parseScore(revScore);
+    const grade = gradeOf(rec, score, revGrade);
+    setSaving(true);
+    try {
+      const updated = await apiPut<LaborProductivity>(`/api/labor-productivity/${rec.id}`, {
+        status: 'manager_reviewed',
+        managerNote: noteText,
+        managerGrade: grade,
+        reviewedAt: now,
+        ...(typeof score === 'number' ? { managerScore: score } : {}),
+      });
+      setRecords(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+      setMessage(`Đã lưu đánh giá của trưởng đơn vị tháng ${month} cho ${user.fullName}.`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCouncilSave = async (lock: boolean) => {
+    if (!rec || rec.status === 'locked' || !user) return;
+    const now = new Date().toISOString();
+    const score = parseScore(revScore);
+    const grade = gradeOf(rec, score, revGrade);
+    setSaving(true);
+    try {
+      const updated = await apiPut<LaborProductivity>(`/api/labor-productivity/${rec.id}`, {
+        status: lock ? 'locked' : 'council_reviewed',
+        councilNote: noteText,
+        councilGrade: grade,
+        councilReviewedAt: now,
+        councilReviewedBy: currentUserId,
+        lockedAt: lock ? now : undefined,
+        ...(typeof score === 'number' ? { councilScore: score } : {}),
+      });
+      setRecords(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+      setMessage(`${lock ? 'Đã chốt kết quả' : 'Đã lưu đánh giá của Hội đồng'} tháng ${month} cho ${user.fullName}.`);
     } finally {
       setSaving(false);
     }
@@ -226,11 +327,11 @@ export default function LaborProductivityDetailPage() {
           <Link href="/kpi/labor-productivity" className="inline-flex items-center gap-1 text-sm text-text-light hover:text-primary">
             <ArrowLeft size={14}/> Bảng năng suất
           </Link>
-          <h1 className="text-2xl font-heading font-bold text-text-dark mt-1">Cá nhân ĐG — Năng suất lao động</h1>
+          <h1 className="text-2xl font-heading font-bold text-text-dark mt-1">{role === 'manager' ? 'Quản lý ĐG' : role === 'council' ? 'Hội đồng ĐG' : 'Cá nhân ĐG'} — Năng suất lao động</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-text-light">Tháng:</span>
-          <select value={month} onChange={e => { setMonth(e.target.value); router.replace(`/kpi/labor-productivity/${userId}?month=${encodeURIComponent(e.target.value)}`, { scroll: false }); }}
+          <select value={month} onChange={e => { setMonth(e.target.value); router.replace(`/kpi/labor-productivity/${userId}?month=${encodeURIComponent(e.target.value)}${role !== 'self' ? `&role=${role}` : ''}`, { scroll: false }); }}
             className="px-3 py-2 rounded-lg border border-border bg-white text-text-dark text-sm focus:outline-none focus:border-primary">
             {monthOptions.map(m => <option key={m} value={m}>Tháng {m}</option>)}
           </select>
@@ -247,7 +348,10 @@ export default function LaborProductivityDetailPage() {
         <div className="card p-8 text-center text-text-light">Không tìm thấy nhân sự này.</div>
       )}
 
-      {!loading && user && (
+      {!loading && user && (() => {
+        if (role === 'manager' && !canManage) return <div className="card p-8 text-center text-text-light">Bạn không có quyền truy cập màn Quản lý ĐG.</div>;
+        if (role === 'council' && !canCouncil) return <div className="card p-8 text-center text-text-light">Bạn không có quyền truy cập màn Hội đồng ĐG.</div>;
+        return (
         <>
           <div className="card">
             <div className="card-header flex flex-wrap items-center justify-between gap-3">
@@ -294,7 +398,47 @@ export default function LaborProductivityDetailPage() {
             </div>
           </div>
 
-          {canManage && rec && rec.status !== 'locked' && (
+          {role !== 'self' && (
+            <div className="card">
+              <div className="card-header">Kết quả các cấp đánh giá</div>
+              <div className="p-4 divide-y divide-border">
+                <div className="py-1 first:pt-0 last:pb-0">
+                  <p className="text-sm font-medium text-text-dark">Tự đánh giá</p>
+                  <p className="mt-0.5 text-sm text-text-light">
+                    <span className="font-mono font-bold text-text-dark">{displayScore}</span> điểm
+                    <span className={`badge ml-1 ${GRADE_META[displayGrade].cls}`}>{GRADE_META[displayGrade].label}</span>
+                  </p>
+                  {rec?.selfNote && <p className="mt-1 text-sm text-text-light">{rec.selfNote}</p>}
+                </div>
+                <div className="py-1">
+                  <p className="text-sm font-medium text-text-dark">Quản lý đánh giá</p>
+                  <p className="mt-0.5 text-sm text-text-light">
+                    {(typeof rec?.managerScore === 'number' || rec?.managerGrade) ? (
+                      <>
+                        <span className="font-mono font-bold text-text-dark">{rec.managerScore ?? displayScore}</span> điểm
+                        {rec.managerGrade && <span className={`badge ml-1 ${GRADE_META[rec.managerGrade as ProductivityGrade]?.cls}`}>{GRADE_META[rec.managerGrade as ProductivityGrade]?.label || rec.managerGrade}</span>}
+                      </>
+                    ) : <span className="text-text-light">Chưa đánh giá</span>}
+                  </p>
+                  {rec?.managerNote && <p className="mt-1 text-sm text-text-light">{rec.managerNote}</p>}
+                </div>
+                <div className="py-1">
+                  <p className="text-sm font-medium text-text-dark">Hội đồng đánh giá</p>
+                  <p className="mt-0.5 text-sm text-text-light">
+                    {(typeof rec?.councilScore === 'number' || rec?.councilGrade) ? (
+                      <>
+                        <span className="font-mono font-bold text-text-dark">{rec.councilScore ?? rec.managerScore ?? displayScore}</span> điểm
+                        {rec.councilGrade && <span className={`badge ml-1 ${GRADE_META[rec.councilGrade as ProductivityGrade]?.cls}`}>{GRADE_META[rec.councilGrade as ProductivityGrade]?.label || rec.councilGrade}</span>}
+                      </>
+                    ) : <span className="text-text-light">Chưa đánh giá</span>}
+                  </p>
+                  {rec?.councilNote && <p className="mt-1 text-sm text-text-light">{rec.councilNote}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {role === 'self' && canSaveSelf && (!rec || rec.status !== 'locked') && (
             <div className="card">
               <div className="card-header">Cập nhật kết quả tự đánh giá</div>
               <div className="p-4">
@@ -316,6 +460,79 @@ export default function LaborProductivityDetailPage() {
                   </div>
                   <button type="button" onClick={handleSaveSelf} disabled={saving} className="btn-primary text-sm flex items-center gap-1">
                     <Send size={14}/> {saving ? 'Đang lưu...' : 'Lưu kết quả'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {role === 'manager' && canManage && rec && rec.status !== 'locked' && (
+            <div className="card">
+              <div className="card-header">Quản lý đánh giá</div>
+              <div className="p-4 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-text-dark mb-1">Điểm điều chỉnh của trưởng đơn vị</label>
+                  <input type="number" min={0} max={100} step={0.1} value={revScore} onChange={e => setRevScore(e.target.value)}
+                    className="w-40 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary"
+                    placeholder="Để trống nếu giữ điểm tự đánh giá" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-dark mb-1">Xếp loại theo trưởng đơn vị</label>
+                  <select value={revGrade} onChange={e => setRevGrade(e.target.value)}
+                    className="w-full max-w-xs px-3 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:border-primary">
+                    <option value="">Theo điểm tự động</option>
+                    {(Object.keys(GRADE_META) as ProductivityGrade[]).map(g => (
+                      <option key={g} value={g}>{GRADE_META[g].label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-dark mb-1">Nhận xét của trưởng đơn vị</label>
+                  <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={3}
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary resize-y"
+                    placeholder="Nhận xét về kết quả năng suất tháng (nếu có)" />
+                </div>
+                <div className="flex justify-end pt-2 border-t">
+                  <button type="button" onClick={handleManagerSave} disabled={saving} className="btn-primary text-sm flex items-center gap-1">
+                    <CheckCheck size={14}/> {saving ? 'Đang lưu...' : 'Lưu nhận xét'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {role === 'council' && canCouncil && rec && rec.status !== 'locked' && (
+            <div className="card">
+              <div className="card-header">Hội đồng đánh giá</div>
+              <div className="p-4 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-text-dark mb-1">Điểm điều chỉnh của Hội đồng</label>
+                  <input type="number" min={0} max={100} step={0.1} value={revScore} onChange={e => setRevScore(e.target.value)}
+                    className="w-40 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary"
+                    placeholder="Để trống nếu giữ điểm tự đánh giá" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-dark mb-1">Xếp loại theo Hội đồng</label>
+                  <select value={revGrade} onChange={e => setRevGrade(e.target.value)}
+                    className="w-full max-w-xs px-3 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:border-primary">
+                    <option value="">Theo điểm tự động</option>
+                    {(Object.keys(GRADE_META) as ProductivityGrade[]).map(g => (
+                      <option key={g} value={g}>{GRADE_META[g].label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-dark mb-1">Nhận xét của Hội đồng</label>
+                  <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={3}
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-primary resize-y"
+                    placeholder="Nhận xét về kết quả năng suất tháng (nếu có)" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <button type="button" onClick={() => handleCouncilSave(false)} disabled={saving} className="btn-secondary text-sm flex items-center gap-1">
+                    <CheckCheck size={14}/> {saving ? 'Đang lưu...' : 'Lưu nhận xét'}
+                  </button>
+                  <button type="button" onClick={() => handleCouncilSave(true)} disabled={saving} className="btn-primary text-sm flex items-center gap-1">
+                    <Lock size={14}/> {saving ? 'Đang chốt...' : 'Khóa kết quả'}
                   </button>
                 </div>
               </div>
@@ -437,7 +654,8 @@ export default function LaborProductivityDetailPage() {
             </div>
           )}
         </>
-      )}
+        );
+      })()}
     </div>
   );
 }
