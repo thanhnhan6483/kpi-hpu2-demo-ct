@@ -7,6 +7,7 @@ import Modal from '@/components/ui/Modal';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import type { SchoolKPICatalog, UnitKPICatalog, IndividualKPICatalog, KPITemplateItem } from '@/types';
 import { indicatorMeta } from '@/lib/laborProductivity';
+import indicatorsData from '@/data/indicators.json';
 
 interface KPITemplate {
   id: string;
@@ -161,6 +162,10 @@ export default function KPITemplateDetailPage() {
     const from = (arr: any[]) => arr.find((x: any) => x.id === indicatorId);
     const found = from(schoolCatalog) || from(unitCatalog) || from(indCatalog);
     if (found) return `${found.code} — ${found.name}`;
+    const school = (indicatorsData as { id: string; code: string; name: string }[]).find(
+      i => i.id === indicatorId || i.code === indicatorId
+    );
+    if (school) return `${school.code} — ${school.name}`;
     const meta = indicatorMeta[indicatorId];
     return meta ? `${indicatorId} — ${meta.name}` : indicatorId;
   };
@@ -172,6 +177,10 @@ export default function KPITemplateDetailPage() {
       const unit = measurementUnits.find(m => m.id === found.unitId);
       return unit?.name || '';
     }
+    const school = (indicatorsData as { id: string; code: string; unit: string }[]).find(
+      i => i.id === indicatorId || i.code === indicatorId
+    );
+    if (school) return school.unit;
     return indicatorMeta[indicatorId]?.unit || '';
   };
 
