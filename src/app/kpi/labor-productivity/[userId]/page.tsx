@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -267,7 +267,10 @@ export default function LaborProductivityDetailPage() {
           </div>
 
           <div className="card">
-            <div className="card-header">Kết quả tự đánh giá theo tiêu chí</div>
+            <div className="card-header">
+              Kết quả tự đánh giá theo tiêu chí
+              <span className="ml-2 text-xs font-normal text-text-light">Công việc thực hiện trong tháng: {liveTasks.length}</span>
+            </div>
             <div className="p-0">
               <div className="overflow-x-auto">
                 <table className="table text-sm">
@@ -275,51 +278,46 @@ export default function LaborProductivityDetailPage() {
                     <tr><th>Tiêu chí</th><th>Chỉ tiêu</th><th>Hoàn thành</th><th>% thực hiện</th><th>Minh chứng</th><th>Điểm</th></tr>
                   </thead>
                   <tbody>
-                    {computed.rows.map(r => (
-                      <tr key={r.templateItemId || r.criterionCode}>
-                        <td>
-                          <span className="font-mono text-xs text-primary">{r.criterionCode}</span>
-                          <span className="block text-text-dark">{r.criterionName}</span>
-                        </td>
-                        <td className="text-xs text-accent-green">{r.target}</td>
-                        <td className="text-sm">{r.completedTasks}/{r.totalTasks}</td>
-                        <td className="text-sm">{r.resultPct}%</td>
-                        <td className="text-sm">{r.hasEvidence ? <span className="badge badge-success">Có</span> : <span className="badge badge-warning">Thiếu</span>}</td>
-                        <td className="font-mono font-bold">{r.score}</td>
-                      </tr>
-                    ))}
+                    {computed.rows.map(r => {
+                      const list = liveTasks.filter(t => t.templateItemId === r.templateItemId);
+                      return (
+                        <Fragment key={r.templateItemId || r.criterionCode}>
+                          <tr>
+                            <td>
+                              <span className="font-mono text-xs text-primary">{r.criterionCode}</span>
+                              <span className="block text-text-dark">{r.criterionName}</span>
+                            </td>
+                            <td className="text-xs text-accent-green">{r.target}</td>
+                            <td className="text-sm">{r.completedTasks}/{r.totalTasks}</td>
+                            <td className="text-sm">{r.resultPct}%</td>
+                            <td className="text-sm">{r.hasEvidence ? <span className="badge badge-success">Có</span> : <span className="badge badge-warning">Thiếu</span>}</td>
+                            <td className="font-mono font-bold">{r.score}</td>
+                          </tr>
+                          <tr>
+                            <td colSpan={6} className="p-0 border-t-0">
+                              {list.length === 0 ? (
+                                <span className="block px-4 py-2 text-xs text-text-light">Chưa có công việc cho tiêu chí này.</span>
+                              ) : (
+                                <TaskTable list={list} />
+                              )}
+                            </td>
+                          </tr>
+                        </Fragment>
+                      );
+                    })}
                     {computed.rows.length === 0 && (
                       <tr><td colSpan={6} className="text-center text-text-light text-sm py-6">Người này chưa có Bộ KPI mẫu</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">Công việc thực hiện trong tháng ({liveTasks.length})</div>
-            <div className="p-4">
-              {liveTasks.length === 0 && <p className="text-sm text-text-light">Chưa có công việc nào được tổng hợp cho tháng này.</p>}
-              {computed.rows.map(r => {
-                const list = liveTasks.filter(t => t.templateItemId === r.templateItemId);
-                if (list.length === 0) return null;
-                return (
-                  <div key={r.templateItemId || r.criterionCode} className="mb-3">
-                    <p className="text-sm font-medium text-text-dark">
-                      <span className="font-mono text-xs text-primary">{r.criterionCode}</span> {r.criterionName}
-                    </p>
-                    <TaskTable list={list} />
-                  </div>
-                );
-              }).filter(Boolean)}
               {(() => {
                 const grouped = new Set(computed.rows.map(r => r.templateItemId));
                 const ungrouped = liveTasks.filter(t => !t.templateItemId || !grouped.has(t.templateItemId));
                 if (ungrouped.length === 0) return null;
                 return (
-                  <div>
-                    <p className="text-sm font-medium text-text-dark">Chưa gán chỉ tiêu</p>
+                  <div className="p-4">
+                    <p className="text-sm font-medium text-text-dark mb-1">Chưa gán chỉ tiêu</p>
                     <TaskTable list={ungrouped} />
                   </div>
                 );
