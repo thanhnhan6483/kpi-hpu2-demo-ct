@@ -3,119 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, RefreshCw, Paperclip, Download, Target } from 'lucide-react';
 import { apiGet } from '@/lib/api';
-import { parsePct, synthesizeTask } from '@/lib/taskResult';
-import type { TaskSynthResult } from '@/lib/taskResult';
 import type { KHCTTask, UnitWorkTask, SchoolKPICatalog, KPIGroup } from '@/types';
-
-interface WorkEvidence {
-  id: string;
-  unitWorkPlanId?: string;
-  fileName?: string;
-  fileUrl?: string;
-  status?: string;
-}
-
-interface MeasurementUnit {
-  id: string;
-  code: string;
-  name: string;
-  status?: string;
-}
-
-interface ParsedTarget {
-  cmp: '>=' | '<=' | '>' | '<' | '=';
-  value: number;
-  isPct: boolean;
-}
-
-interface IndicatorTaskRow {
-  task: KHCTTask;
-  jobs: UnitWorkTask[];
-  synth: TaskSynthResult;
-  evidenceNames: string[];
-  hasData: boolean;
-  reach: boolean;
-}
-
-type IndicatorStatusKey = 'no_data' | 'updating' | 'fail' | 'partial' | 'ok';
-
-interface IndicatorRow {
-  indicator: SchoolKPICatalog;
-  groupName: string;
-  tasks: IndicatorTaskRow[];
-  reported: number;
-  unreported: number;
-  fail: number;
-  doneOk: number;
-  statusKey: IndicatorStatusKey;
-  statusLabel: string;
-  statusCls: string;
-  unitName: string;
-  gapText: string;
-}
-
-const statusLabelMap: Record<string, string> = {
-  done: 'Hoàn thành',
-  in_progress: 'Đang thực hiện',
-  not_started: 'Chưa thực hiện',
-};
-
-const statusClsMap: Record<string, string> = {
-  done: 'badge-success',
-  in_progress: 'badge-warning',
-  not_started: 'badge-info',
-};
-
-const statusMeta: Record<IndicatorStatusKey, { label: string; cls: string }> = {
-  no_data: { label: 'Chưa có dữ liệu', cls: 'badge-info' },
-  updating: { label: 'Đang cập nhật', cls: 'badge-warning' },
-  fail: { label: 'Chưa đạt', cls: 'badge-danger' },
-  partial: { label: 'Đạt một phần', cls: 'badge-warning' },
-  ok: { label: 'Đạt', cls: 'badge-success' },
-};
-
-function csvEscape(val: string | number): string {
-  const s = String(val);
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-function parseTarget(target?: string): ParsedTarget | null {
-  if (!target) return null;
-  const m = String(target).trim().match(/^(>=|<=|>|<|=)?\s*(\d+(?:[.,]\d+)?)\s*(%)?/);
-  if (!m) return null;
-  return { cmp: (m[1] || '>=') as ParsedTarget['cmp'], value: Number(m[2].replace(',', '.')), isPct: !!m[3] };
-}
-
-function academicYearOfMonth(month?: string): string {
-  if (!month) return '';
-  const [m, y] = month.split('/').map(s => Number(s));
-  if (!m || !y) return '';
-  const start = m >= 8 ? y : y - 1;
-  return `${start}-${start + 1}`;
-}
-
-function cmpValue(value: number, t: ParsedTarget): boolean {
-  switch (t.cmp) {
-    case '>=': return value >= t.value;
-    case '<=': return value <= t.value;
-    case '>': return value > t.value;
-    case '<': return value < t.value;
-    default: return Math.abs(value - t.value) < 1e-6;
-  }
-}
-
-function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
-  const lines = [headers.join(',')];
-  rows.forEach(r => lines.push(r.map(cell => csvEscape(cell)).join(',')));
-  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import {
+  academicYearOfMonth,
+  activeIndicatorCodes,
+  buildIndicatorRows,
+  downloadCsv,
+  statusClsMap,
+  statusLabelMap,
+  statusMeta,
+} from '@/lib/indicatorReport';
+import type { IndicatorRow, IndicatorStatusKey, MeasurementUnit, WorkEvidence } from '@/lib/indicatorReport';
 
 export default function KpiIndicatorReportPage() {
   const [indicators, setIndicators] = useState<SchoolKPICatalog[]>([]);
@@ -152,36 +50,9 @@ export default function KpiIndicatorReportPage() {
     load();
   }, [load]);
 
-  const evidenceByWork = useMemo(() => {
-    const map: Record<string, WorkEvidence[]> = {};
-    evidences.forEach(ev => {
-      if (ev.unitWorkPlanId) (map[ev.unitWorkPlanId] ||= []).push(ev);
-    });
-    return map;
-  }, [evidences]);
-
-  const workByTask = useMemo(() => {
-    const map: Record<string, UnitWorkTask[]> = {};
-    workTasks.forEach(w => {
-      (map[w.khctTaskId] ||= []).push(w);
-    });
-    return map;
-  }, [workTasks]);
-
-  const groupById = useMemo(() => {
-    const map = new Map<string, string>();
-    groups.forEach(g => map.set(g.id, g.name));
-    return map;
-  }, [groups]);
-
-  const activeIndicators = useMemo(
-    () => indicators.filter(i => i.status === 'active'),
-    [indicators],
-  );
-
   const activeCodes = useMemo(
-    () => new Set(activeIndicators.map(i => i.code)),
-    [activeIndicators],
+    () => activeIndicatorCodes(indicators),
+    [indicators],
   );
 
   const matchedTasks = useMemo(
@@ -190,12 +61,6 @@ export default function KpiIndicatorReportPage() {
     ),
     [tasks, activeCodes],
   );
-
-  const unitById = useMemo(() => {
-    const map = new Map<string, string>();
-    units.forEach(u => map.set(u.id, u.name));
-    return map;
-  }, [units]);
 
   const yearOptions = useMemo(
     () => Array.from(new Set(matchedTasks.map(t => academicYearOfMonth(t.month)).filter(Boolean))).sort().reverse(),
@@ -207,75 +72,10 @@ export default function KpiIndicatorReportPage() {
     [matchedTasks, yearFilter],
   );
 
-  const buildTaskRow = (task: KHCTTask, target?: string): IndicatorTaskRow => {
-    const jobs = workByTask[task.id] || [];
-    const synth = synthesizeTask(task, jobs);
-    const jobIds = new Set(jobs.map(j => j.id));
-    const evidenceNames = Object.values(evidenceByWork)
-      .flatMap(list => list.filter(ev => ev.unitWorkPlanId && jobIds.has(ev.unitWorkPlanId)))
-      .map(ev => ev.fileName || ev.id);
-
-    const pct = parsePct(synth.result) ?? parsePct(task.taskResult || '');
-    const pt = parseTarget(target);
-    let reach = task.taskStatus === 'done';
-    if (!reach) {
-      if (pt) {
-        if (pt.isPct && pct != null) reach = cmpValue(pct, pt);
-        else if (!pt.isPct && synth.totalSub > 0) reach = cmpValue(synth.doneSub, pt);
-        else if (!pt.isPct) reach = synth.status === 'done';
-      } else {
-        reach = synth.status === 'done';
-      }
-    }
-    const hasData = !!(task.taskStatus || task.taskResult || jobs.length > 0);
-    return { task, jobs, synth, evidenceNames, hasData, reach };
-  };
-
-  const indicatorRows = useMemo<IndicatorRow[]>(() => {
-    return activeIndicators.map(ind => {
-      const unitName = unitById.get(ind.unitId) || '';
-      const tasks = tasksInScope
-        .filter(t => (t.kpiCodes || '').split(';').map(c => c.trim()).filter(Boolean).includes(ind.code))
-        .map(t => buildTaskRow(t, ind.target));
-      const reported = tasks.filter(r => r.hasData).length;
-      const fail = tasks.filter(r => r.hasData && !r.reach).length;
-      const unreported = tasks.length - reported;
-      const doneOk = tasks.filter(r => r.reach).length;
-
-      let statusKey: IndicatorStatusKey;
-      if (tasks.length === 0) statusKey = 'no_data';
-      else if (fail > 0) statusKey = 'fail';
-      else if (reported === 0) statusKey = 'updating';
-      else if (unreported > 0) statusKey = 'partial';
-      else statusKey = 'ok';
-
-      let gapText = '';
-      if (statusKey === 'fail') {
-        const pt = parseTarget(ind.target);
-        if (pt && !pt.isPct) {
-          const gap = pt.value - doneOk;
-          if (gap > 0) gapText = `Thiếu ${gap} nhiệm vụ`;
-        }
-      }
-
-      const meta = statusMeta[statusKey];
-
-      return {
-        indicator: ind,
-        groupName: groupById.get(ind.categoryId) || ind.categoryId,
-        tasks,
-        reported,
-        unreported,
-        fail,
-        doneOk,
-        statusKey,
-        statusLabel: meta.label,
-        statusCls: meta.cls,
-        unitName,
-        gapText,
-      };
-    });
-  }, [activeIndicators, tasksInScope, workByTask, evidenceByWork, groupById, unitById]);
+  const indicatorRows = useMemo<IndicatorRow[]>(
+    () => buildIndicatorRows({ indicators, tasks: tasksInScope, workTasks, evidences, groups, units }),
+    [indicators, tasksInScope, workTasks, evidences, groups, units],
+  );
 
   const filteredRows = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
